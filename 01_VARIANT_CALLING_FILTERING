@@ -1,0 +1,145 @@
+#!/bin/bash
+
+#SAMtools: to filter for flagged bam-files = uniquely mappeing sequences
+
+#H1
+
+cd /media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H1/05_MAPPED_DATA
+
+for i in *_Aligned.sortedByCoord.out.bam;do
+    SAMPLE=$(echo ${i} | sed "s/\_Aligned\.sortedByCoord\.out\.bam//")
+    echo filtering for ${SAMPLE} is running...
+    samtools view -q 255 -b -o /media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H1/05_MAPPED_DATA/${SAMPLE}_uniquelyMapper_Aligned.sortedByCoord.out.bam ${i}
+done
+
+#H2
+
+cd /media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H2/05_MAPPED_DATA
+
+for i in *_Aligned.sortedByCoord.out.bam;do
+    SAMPLE=$(echo ${i} | sed "s/\_Aligned\.sortedByCoord\.out\.bam//")
+    echo filtering for ${SAMPLE} is running...
+    samtools view -q 255 -b -o /media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H2/05_MAPPED_DATA/${SAMPLE}_uniquelyMapper_Aligned.sortedByCoord.out.bam ${i}
+done
+
+
+#BCFtools: pileup and variant calling
+
+#H1
+
+bcftools mpileup \
+--fasta-ref /media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/00_META_DATA/REFERENCE_HAP_REF/H1/TME204.hap1.v1.1.fna \
+--threads 20 \
+--skip-indels \
+--output /media/stephan/YUBARTA/MARINA/01_VARIANT_CALL/PYT500_H1_mpileup_uniquelyMapper.bcf \
+--output-type b \
+--annotate FORMAT/AD,FORMAT/DP,INFO/AD \
+/media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H1/05_MAPPED_DATA/*uniquelyMapper_Aligned.sortedByCoord.out.bam \
+
+bcftools call \
+-m \
+--output /media/stephan/YUBARTA/MARINA/01_VARIANT_CALL/VARIANT_CALL_PYT500_H1_uniquelyMapper.vcf \
+--output-type b \
+--threads 20 \
+--variants-only \
+/media/stephan/YUBARTA/MARINA/01_VARIANT_CALL/PYT500_H1_mpileup_uniquelyMapper.bcf
+
+#H2
+
+bcftools mpileup \
+--fasta-ref /media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/00_META_DATA/REFERENCE_HAP_REF/H2/TME204.hap2.v1.1.fna \
+--threads 20 \
+--skip-indels \
+--output /media/stephan/YUBARTA/MARINA/01_VARIANT_CALL/PYT500_H2_mpileup_uniquelyMapper.bcf \
+--output-type b \
+--annotate FORMAT/AD,FORMAT/DP,INFO/AD \
+/media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H2/05_MAPPED_DATA/*uniquelyMapper_Aligned.sortedByCoord.out.bam \
+
+bcftools call \
+-m \
+--output /media/stephan/YUBARTA/MARINA/01_VARIANT_CALL/VARIANT_CALL_PYT500_H2_uniquelyMapper.vcf \
+--output-type b \
+--threads 20 \
+--variants-only \
+/media/stephan/YUBARTA/MARINA/01_VARIANT_CALL/PYT500_H2_mpileup_uniquelyMapper.bcf
+
+
+
+#VCFtools: filtering for QUAL=30, minDP=20, min-/max-alleles=2, maf=0.05, max-missing=0.9
+
+#H1
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/01_VARIANT_CALL/VARIANT_CALL_PYT500_H1_uniquelyMapper.vcf \
+--recode-INFO-all \
+--minQ 30 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL.recode.vcf \
+--recode-INFO-all \
+--minDP 20 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP.recode.vcf \
+--recode-INFO-all \
+--max-alleles 2 \
+--min-alleles 2 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC.recode.vcf \
+--recode-INFO-all \
+--maf 0.05 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF.recode.vcf \
+--recode-INFO-all \
+--max-missing 0.9 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H1_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF_MISSING \
+--recode
+
+
+#H2
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/01_VARIANT_CALL/VARIANT_CALL_PYT500_H2_uniquelyMapper.vcf \
+--recode-INFO-all \
+--minQ 30 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL.recode.vcf \
+--recode-INFO-all \
+--minDP 20 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP.recode.vcf \
+--recode-INFO-all \
+--max-alleles 2 \
+--min-alleles 2 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC.recode.vcf \
+--recode-INFO-all \
+--maf 0.05 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF \
+--recode
+
+vcftools \
+--vcf /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF.recode.vcf \
+--recode-INFO-all \
+--max-missing 0.9 \
+--out /media/rna/YUBARTA/MARINA/02_FILTERING/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF_MISSING \
+--recode
