@@ -1,0 +1,90 @@
+#####Loading Libraries
+library("GWASpoly")
+library("png")
+library("ggplot2")
+library("dplyr")
+library("DescTools")
+library("stringr")
+
+#####Set directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- paste0(WD, "01_RESULTS/03_GWAS/")
+figure_path <- paste0(WD, "02_FIGURES/03_GWAS/")
+
+
+######Loading Data
+load(paste0(results_path, "H1_GWAS_objects_rtwt_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_rtwt"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Creating a dataframe for each model
+additive <- subset(p_values, select = c(CHR, SNP, BP, additive))
+colnames(additive)[4] ="P"
+additive$BP <- as.numeric(additive$BP)
+additive <- na.omit(additive)
+
+general <- subset(p_values, select = c(CHR, SNP, BP, general))
+colnames(general)[4] ="P"
+general$BP <- as.numeric(general$BP)
+general <- na.omit(general)
+
+domref <- subset(p_values, select = c(CHR, SNP, BP, domref))
+colnames(domref)[4] ="P"
+domref$BP <- as.numeric(domref$BP)
+domref <- na.omit(domref)
+
+domalt <- subset(p_values, select = c(CHR, SNP, BP, domalt))
+colnames(domalt)[4] ="P"
+domalt$BP <- as.numeric(domalt$BP)
+domalt <- na.omit(domalt)
+
+
+p_values$additive <- 10^-(p_values$additive)
+p_values$general <- 10^-(p_values$general)
+p_values$domalt <- 10^-(p_values$domalt)
+p_values$domref <- 10^-(p_values$domref)
+
+
+#####QQ-Plots: DMH1
+
+chr14_add <- subset(additive, CHR == 14)
+png(paste0(figure_path, "rtwt_H1_QQ_add.png"), width = 800, height = 800, res = 300)
+ggplot(chr14_add, aes(sample=chr14_add$P)) +
+  stat_qq() + 
+  stat_qq_line()
+dev.off()
+
+chr14_gen <- subset(general, CHR == 14)
+png(paste0(figure_path, "rtwt_H1_QQ_gen.png"), width = 800, height = 800, res = 300)
+ggplot(chr14_gen, aes(sample=chr14_gen$P)) +
+  stat_qq() + 
+  stat_qq_line()
+dev.off()
+
+chr14_alt <- subset(domalt, CHR == 14)
+png(paste0(figure_path, "rtwt_H1_QQ_alt.png"), width = 800, height = 800, res = 300)
+ggplot(chr14_alt, aes(sample=chr14_alt$P)) +
+  stat_qq() + 
+  stat_qq_line()
+dev.off()
+
+chr14_ref <- subset(domref, CHR == 1)
+png(paste0(figure_path, "rtwt_H1_QQ_ref.png"), width = 800, height = 800, res = 300)
+ggplot(chr14_ref, aes(sample=chr14_ref$P)) +
+  stat_qq() + 
+  stat_qq_line()
+dev.off()
