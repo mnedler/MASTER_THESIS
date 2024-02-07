@@ -1,0 +1,132 @@
+#####Loading Libraries
+library("GWASpoly")
+library("png")
+library("dplyr")
+library("tidyr")
+
+#####Set Directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- "/home/marina/Desktop/Masterarbeit/01_RESULTS/"
+figure_path <- "/home/marina/Desktop/Masterarbeit/02_FIGURES/"
+
+set.seed(42)
+
+#####Generating Dosage Matrix
+VCF_H1 <- paste0(WD, "00_DATA/VARIANT_CALL_PYT500_H1_final.recode.vcf")
+VCF_H2 <- paste0(WD, "00_DATA/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF_MISSING.recode.vcf")
+
+VCF2dosage(VCF.file = VCF_H1, dosage.file = paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H1.csv"), geno.code = "GT",
+               ploidy = 2, max.missing = 0.1, min.DP = 30)
+
+VCF2dosage(VCF.file = VCF_H2, dosage.file = paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H2.csv"), geno.code = "GT", 
+               ploidy = 2, max.missing = 0.1, min.DP = 30)
+
+
+#####Prepearing Dosage Matrix
+#Haplotype 1
+dosage_H1 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H1.csv"))
+
+names(dosage_H1)[6:ncol(dosage_H1)] <- gsub("X.media.stephan.YUBARTA.SINDY.HAPLOTYPE_RESOLVED.01_MAPPED_DATA.H1.05_MAPPED_DATA.P", 
+               "", names(dosage_H1)[6:ncol(dosage_H1)])
+
+names(dosage_H1)[6:ncol(dosage_H1)] <- gsub("_uniquelyMapper_Aligned.sortedByCoord.out.bam", 
+               "", names(dosage_H1)[6:ncol(dosage_H1)])
+
+write.csv(dosage_H1, file = paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H1_renamed.csv"))
+
+rownames(dosage_H1) <- dosage_H1$Marker
+dosage_H1_small <- dosage_H1[6:246]
+write.csv(dosage_H1_small, file = paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H1_small.csv"))
+
+#Haplotype 2
+dosage_H2 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H2.csv"))
+#marker <- dosage_H2 %>% filter(Marker == "chromosomeXIV_12996006")
+
+names(dosage_H2)[6:ncol(dosage_H2)] <- gsub("X.media.stephan.YUBARTA.SINDY.HAPLOTYPE_RESOLVED.01_MAPPED_DATA.H2.05_MAPPED_DATA.P", 
+              "", names(dosage_H2)[6:ncol(dosage_H2)])
+names(dosage_H2)[6:ncol(dosage_H2)] <- gsub("_uniquelyMapper_Aligned.sortedByCoord.out.bam", 
+              "", names(dosage_H2)[6:ncol(dosage_H2)])
+
+write.csv(dosage_H2, file = paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H2_renamed.csv"))
+
+rownames(dosage_H2) <- dosage_H2$Marker
+dosage_H2_small <- dosage_H2[6:246]
+write.csv(dosage_H2_small, file = paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H2_small.csv"))
+
+
+#####Common markers
+marker_H1 <- rownames(dosage_H1)
+write.csv(marker_H1, paste0(results_path, "marker_H1.csv"))
+
+marker_H2 <- rownames(dosage_H2)
+write.csv(marker_H2, paste0(results_path, "marker_H2.csv"))
+
+common_markers <- marker_H1 %in% marker_H2
+markers <- marker_H1[common_markers]
+write.csv(markers, paste0(results_path, "02_POPULATION_STRUCTURE/common_markers.csv"))
+
+
+#####PCA and Scatterplots
+#Haplotyp 1
+PCA_H1 <- prcomp(t(na.omit(dosage_H1_small)), center = TRUE, scale. = TRUE)
+
+variance_percentage_H1_C12 <- c(PCA_H1$sdev[1]^2, PCA_H1$sdev[2]^2) / sum(PCA_H1$sdev^2) * 100
+variance_percentage_H1_C34 <- c(PCA_H1$sdev[3]^2, PCA_H1$sdev[4]^2) / sum(PCA_H1$sdev^2) * 100
+
+png(paste0(figure_path, "02_POPULATION_STRUCTURE/H1_PCA_C12_SCATTER.png"), width = 2000, height = 2000, res = 300)
+plot(PCA_H1$x[,1], PCA_H1$x[,2], main = "PCA Scatterplot H1, PC1 + PC2", xlab = paste("PC1 (", 
+    round(variance_percentage_H1_C12[1], 2), "%)", sep = ""), ylab = paste("PC2 (", 
+    round(variance_percentage_H1_C12[2], 2), "%)", sep = ""), pch = 16, col = "blue")
+dev.off()
+
+png(paste0(figure_path, "02_POPULATION_STRUCTURE/H1_PCA_C34_SCATTER.png"), width = 2000, height = 2000, res = 300)
+plot(PCA_H1$x[,3], PCA_H1$x[,4], main = "PCA Scatterplot H1, PC3 + PC4", xlab = paste("PC3 (", 
+    round(variance_percentage_H1_C34[3], 2), "%)", sep = ""), ylab = paste("PC4 (", 
+    round(variance_percentage_H1_C34[4], 2), "%)", sep = ""), pch = 16, col = "blue")
+dev.off()
+
+#Haplotyp 2
+PCA_H2 <- prcomp(t(na.omit(dosage_H2_small)), center = TRUE, scale. = TRUE)
+
+variance_percentage_H2_C12 <- c(PCA_H2$sdev[1]^2, PCA_H2$sdev[2]^2) / sum(PCA_H2$sdev^2) * 100
+variance_percentage_H2_C34 <- c(PCA_H2$sdev[3]^2, PCA_H2$sdev[4]^2) / sum(PCA_H2$sdev^2) * 100
+
+png(paste0(figure_path, "02_POPULATION_STRUCTURE/H2_PCA_C12_SCATTER.png"), width = 2000, height = 2000, res = 300)
+plot(PCA_H2$x[,1], PCA_H2$x[,2], main = "PCA Scatterplot H2, PC1 + PC2", xlab = paste("PC1 (", 
+    round(variance_percentage_H2_C12[1], 2), "%)", sep = ""), ylab = paste("PC2 (", 
+    round(variance_percentage_H2_C12[2], 2), "%)", sep = ""), pch = 16, col = "blue")
+dev.off()
+
+png(paste0(figure_path, "02_POPULATION_STRUCTURE/H2_PCA_C34_SCATTER.png"), width = 2000, height = 2000, res = 300)
+plot(PCA_H1$x[,3], PCA_H1$x[,4], main = "PCA Scatterplot H2, PC3 + PC4", xlab = paste("PC3 (", 
+    round(variance_percentage_H2_C34[3], 2), "%)", sep = ""), ylab = paste("PC4 (", 
+    round(variance_percentage_H2_C34[4], 2), "%)", sep = ""), pch = 16, col = "blue")
+dev.off()
+
+
+#####Barplots visualizing principal components
+#Haplotype 1
+varianz_H1 <- PCA_H1$sdev^2
+varianz_H1 <- varianz_H1[1:10]
+
+gesamt_varianz_H1 <- sum(varianz_H1)
+prozent_varianz_H1 <- (varianz_H1 / gesamt_varianz_H1) * 100
+
+png(paste0(figure_path, "02_POPULATION_STRUCTURE/PCA_barplot_H1.png"), width = 2000, height = 2000, res = 300)
+barplot(prozent_varianz_H1, names.arg = 1:10, xlab = "Principal Component", ylab = "Explained Variance", 
+        ylim = c(0, 20))
+abline(h = seq(0, 20, by = 5), col = "gray")
+dev.off()
+
+#Haplotype 2
+varianz_H2 <- PCA_H2$sdev^2
+varianz_H2 <- varianz_H2[1:10]
+
+gesamt_varianz_H2 <- sum(varianz_H2)
+prozent_varianz_H2 <- (varianz_H2 / gesamt_varianz_H2) * 100
+
+png(paste0(figure_path, "02_POPULATION_STRUCTURE/PCA_barplot_H2.png"), width = 2000, height = 2000, res = 300)
+barplot(prozent_varianz_H2, names.arg = 1:10, xlab = "Principal Component", ylab = "Explained Variance", 
+        ylim = c(0, 20))
+abline(h = seq(0, 20, by = 5), col = "gray")
+dev.off()
