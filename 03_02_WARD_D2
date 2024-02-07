@@ -1,0 +1,80 @@
+#####Loading Libraries
+library(GWASpoly)
+library(svglite)
+library(ape)
+library(tibble)
+
+set.seed(42)
+
+#####Set Directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- "/home/marina/Desktop/Masterarbeit/01_RESULTS/"
+figure_path <- "/home/marina/Desktop/Masterarbeit/02_FIGURES/"
+
+#####Reading Dosage matrix
+#Haplotyp 1
+dosage_H1 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H1_renamed.csv"))
+names(dosage_H1)[7:247] <- gsub("X", "", names(dosage_H1)[7:247])
+rownames(dosage_H1) <- dosage_H1$Marker
+dosage_H1 <- dosage_H1[7:247]
+
+#Haplotyp 2
+dosage_H2 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/DOSAGE_H2_renamed.csv"))
+names(dosage_H2)[7:247] <- gsub("X", "", names(dosage_H2)[7:247])
+rownames(dosage_H2) <- dosage_H2$Marker
+dosage_H2 <- dosage_H2[7:247]
+
+
+#####Hierarchical Clustering (WARD)
+#Calculating of the genetic distances, generating a phylogram
+distance_H1 <- dist(t(na.omit(dosage_H1)))
+tree_H1 <- hclust(distance_H1, method = "ward.D2")
+
+distance_H2 <- dist(t(na.omit(dosage_H2)))
+tree_H2 <- hclust(distance_H2, method = "ward.D2")
+
+
+#Generating phylograms 
+colors = c("coral4", "darkgoldenrod", "darkblue", "darkgreen")
+
+#Haplotyp 1
+clusters_H1 <- cutree(tree_H1, k = 4)
+
+svg(paste0(figure_path, "02_POPULATION_STRUCTURE/WARD_tree_H1.svg"), 19, 12)
+plot(as.dendrogram(tree_H1), leaflab = "none", main = "", sub = "", ylab = "height", cex.lab = 1, 
+     cex.axis = 1, cex.main = 1, cex = 0.5)
+par(lwd = 3, mar = c(0,0,0,0))
+rect.hclust(tree = tree_H1, k = 4, which = 1:4, border = colors)
+dev.off()
+
+svg(paste0(figure_path, "02_POPULATION_STRUCTURE/WARD_fan_H1.svg"), 12, 12)
+plot(as.phylo(tree_H1), type = "fan", tip.color = colors[clusters_H1])
+dev.off()
+
+#Haplotyp 2
+clusters_H2 <- cutree(tree_H2, k = 4)
+
+svg(paste0(figure_path, "02_POPULATION_STRUCTURE/WARD_tree_H2.svg"), 19, 12)
+plot(as.dendrogram(tree_H2), leaflab = "none", main = "", sub = "", ylab = "height", cex.lab = 1, 
+     cex.axis = 1, cex.main = 1, cex = 0.5)
+par(lwd = 3, mar = c(0,0,0,0))
+rect.hclust(tree = tree_H2, k = 4, which = 1:4, border = colors)
+dev.off()
+
+svg(paste0(figure_path, "02_POPULATION_STRUCTURE/WARD_fan_H2.svg"), 12, 12)
+plot(as.phylo(tree_H2), type = "fan", tip.color = colors[clusters_H2])
+dev.off()
+
+
+#Generating table containing cluster assignments of the genotypes
+
+cluster_table_H1 <- data.frame(cutree(tree_H1, k = 4))
+colnames(cluster_table_H1) <- "Ward D2 Cluster H1"
+cluster_table_H1 <- rownames_to_column(cluster_table_H1, var = "plot_number")
+
+cluster_table_H2 <- data.frame(cutree(tree_H2, k = 4))
+colnames(cluster_table_H2) <- "Ward D2 Cluster H2"
+cluster_table_H2 <- rownames_to_column(cluster_table_H2, var = "plot_number")
+
+cluster_assignment <- merge(cluster_table_H1, cluster_table_H2, by = "plot_number")
+write.csv(cluster_assignment, paste0(results_path, "02_POPULATION_STRUCTURE/ward_cluster_assignment.csv"))
