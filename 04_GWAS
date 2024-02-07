@@ -1,0 +1,218 @@
+########################################################################################################################
+# LIBRARY
+########################################################################################################################
+library("GWASpoly")
+library("tidyverse")
+library("lme4")
+library("effects")
+library("car")
+library("lmerTest")
+library("dplyr")
+
+########################################################################################################################
+# SET DIRECTORIES
+########################################################################################################################
+dir.create("/home/rna/Marina/GWAS/")
+WD <- "/home/rna/Marina/GWAS/"
+dir.create(paste0(WD, "02_FIGURES/"))
+figure_path <- paste0(WD, "02_FIGURES/")
+dir.create(paste0(WD, "01_RESULTS/"))
+results_path <- paste0(WD, "01_RESULTS/")
+
+########################################################################################################################
+# FUNCTIONS AND VARIABLES
+########################################################################################################################
+set.seed(42)
+
+TOIs <- c("dm", "rtwt")
+
+blue_calculation <- function(trait, formula, data, samples){
+  data <- data[,c("accession_name", "plot_number", "year_harvested", "rep_number", trait)]
+  blue <- lmer(formula, data = data)
+  test <- as.data.frame(fixef(blue))
+  test$accession_name <- gsub("accession_name", "", row.names(test))
+  colnames(test)[colnames(test) == paste0("fixef(blue)")] <- paste0("blue_", trait)
+  test <- merge(data, test, by = "accession_name")
+  test <- filter(test, year_harvested == 2021)
+  test <- filter(test, plot_number %in% samples)
+  test <- test[,c("plot_number", paste0("blue_", trait))]
+  return(test)
+}
+
+########################################################################################################################
+# CALCULATION OF BLUEs
+########################################################################################################################
+featureCounts <- read.delim("/media/rna/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_FEATURECOUNTS/H1/FEATURECOUNTS_gene_UNIQUE_renamed.txt")
+sequenced_samples <- str_replace(names(featureCounts), "P", "")
+
+traits2020 <- read.delim(paste0(WD, "00_DATA/PYT500_phenotype_data_original_2020.txt"))
+traits2020 <- traits2020[, c("accession_name", "plot_number", "year_harvested", TOIs, "rep_number")]
+traits2021 <- read.delim(paste0(WD, "00_DATA/PYT500_phenotype_data_original_2021.txt"))
+traits2021 <- traits2021[, c("accession_name", "plot_number", "year_harvested", TOIs, "rep_number")]
+meta_data <-rbind(traits2020, traits2021)
+
+blue_dm <- blue_calculation("dm", "dm ~ 0 + accession_name + (1|rep_number) + (1|year_harvested)", meta_data, sequenced_samples)
+blue_rtwt <- blue_calculation("rtwt", "rtwt ~ 0 + accession_name + (1|rep_number) + (1|year_harvested)", meta_data, sequenced_samples)
+
+meta_data <- read.delim(paste0(WD, "00_DATA/PYT500_phenotype_data_original_2021.txt"))
+meta_data <- filter(meta_data, rep_number == 2)
+meta_data <- filter(meta_data, plot_number %in% sequenced_samples)
+meta_data <- filter(meta_data, !plot_number %in% c("2333", "2194", "2172", "2170", "2188", "2265", "2318", "2437", "2440", "2357", "2450", "2328", "2157"))
+
+blue_dm <- merge(blue_dm, meta_data, by = "plot_number")
+blue_dm <- blue_dm[, c("accession_name", "plot_number", "blue_dm")]
+blue_rtwt <- merge(blue_rtwt, meta_data, by = "plot_number")
+blue_rtwt <- blue_rtwt[, c("accession_name", "plot_number", "blue_rtwt")]
+
+meta_data_BLUEs_final <- merge(blue_dm, meta_data, by = c("plot_number", "accession_name"))
+meta_data_BLUEs_final <- merge(blue_rtwt, meta_data_BLUEs_final, by = c("plot_number", "accession_name"))
+
+########################################################################################################################
+# PREPARE DATA FOR GWAS H1
+########################################################################################################################
+
+SubPop <- read_csv(paste0(results_path, "02_POPULATION_STRUCTURE/dapc_H1.csv"))
+SubPop <- SubPop[, -1]
+meta_data_BLUEs_final <- merge(SubPop, meta_data_BLUEs_final, all.x = TRUE, by = "plot_number")
+meta_data_BLUEs_final$plot_number <- as.integer(meta_data_BLUEs_final$plot_number)
+
+########################################################################################################################
+# GWAS Step 1 - H1
+########################################################################################################################
+
+for (i in TOIs){
+  message(paste0("GWAS_H1 for ", i, " is being processed..."))
+  DOSAGE <- read.delim(paste0(WD, "00_DATA/DOSAGE_H1_small.csv"), sep = ",", row.names = 1)
+
+  # Function for calculation of the genomic inflation of each combination of all traits and gene models
+  genomic_inflation <- function(GWASpolyObject) {
+
+    # Assign a variable to the argument within the function
+    GWASpolyObject <- GWASpolyObject
+
+    # Create a dataframe containing all combinations of traits and model
+    model_frame <- data.frame(trait = rep(i, each=4), model = rep(c("additive", "general", "1-dom-alt", "1-dom-ref"), times = 1))
+
+    # Append a third column to the dataframe containing the individual lambdas as calculated using the `genomic_inflation_factor()` function
+    model_frame["lambda"] <- apply(X = model_frame, MARGIN = 1,
+                                   FUN = function(x){
+                                     trait <- x[1]
+                                     model <- x[2]
+                                     trait_results <- GWASpolyObject@scores[[trait]] %>% dplyr::select(all_of(model)) %>% as.vector()
+                                     median(qchisq(10^-na.omit(trait_results[[1]]), df=1, lower.tail=FALSE)) / qchisq(0.5, 1)
+                                   }
+    )
+    (model_frame)
+  }
+
+  # Filter the BLUEs to contain only those sample that were genotyped
+  names(DOSAGE) <- str_replace(names(DOSAGE), "X", "")
+
+  GWAS_strat <- meta_data_BLUEs_final[meta_data_BLUEs_final$plot_number %in% colnames(DOSAGE)[6:ncol(DOSAGE)],c("accession_name", paste0("blue_", i), "dapc_population_H1")]
+  colnames(GWAS_strat)[colnames(GWAS_strat) == paste0("blue_", i)] <- paste0("blue_", i)
+
+  var_names <- meta_data_BLUEs_final[as.character(meta_data_BLUEs_final$plot_number) %in% colnames(DOSAGE)[6:ncol(DOSAGE)], c("accession_name", "plot_number")]
+
+  # Change the actual sample names in the genotype file
+  colnames(DOSAGE)[6:ncol(DOSAGE)] <- var_names[match(var_names$plot_number, colnames(DOSAGE)[6:ncol(DOSAGE)]),1]
+
+  # Check if there are still any mismatches between the initial column names in the dosage file and the
+  sum(colnames(DOSAGE)[6:ncol(DOSAGE)] == var_names$plot_number)
+  sum(colnames(DOSAGE)[6:ncol(DOSAGE)] == var_names$accession_name)
+
+  # Save the filtered phenotype file and the modified genotype file again as GWASpoly can only handle paths and not loaded dataframes
+  write.table(x = DOSAGE, file = paste0(WD, "01_RESULTS/GWAS_FINAL_Dosage_Matrix_H1_uniquelyMapper.csv"), sep = ',')
+  write.table(x = GWAS_strat, file = paste0(WD, "01_RESULTS/", i, "_GWAS_strat_H1_uniquelyMapper.csv"), sep = ',', row.names=FALSE)
+
+  ########################################################################################################################
+  # GWAS Step 2 - H1
+  ########################################################################################################################
+  DOSAGE <- paste0(WD, "01_RESULTS/GWAS_FINAL_Dosage_Matrix_H1_uniquelyMapper.csv")
+  GWAS_strat <- paste0(WD, "01_RESULTS/", i, "_GWAS_strat_H1_uniquelyMapper.csv")
+
+  # Conduct GWAS using DAPC for population structure correction
+  data_strat <- read.GWASpoly(pheno.file = GWAS_strat, geno.file = DOSAGE,
+                              n.traits = 1, delim = ",", ploidy = 2, format = "numeric")
+
+  # Calculate additive kinship matrix for the GWAS using the LOCO mode
+  dataLoco_strat <- set.K(data_strat, LOCO=TRUE, n.core = 10)
+  params_strat <- set.params(P3D = FALSE, MAF = 0.05, fixed = "dapc_population_H1", fixed.type = "factor")
+  dataLocoGWAS_strat <- GWASpoly(data = dataLoco_strat, models = c("additive", "1-dom", "general"), traits = paste0("blue_", i), n.core = 10, params = params_strat)
+  dataLocoGWASThreshold_strat <- set.threshold(dataLocoGWAS_strat, method="Bonferroni", level=0.05)
+  save(dataLoco_strat, dataLocoGWAS_strat, dataLocoGWASThreshold_strat, file = paste0(WD, "01_RESULTS/GWAS_objects_", i, "_H1_uniquelyMapper.RData"))
+}
+
+writeLines(capture.output(sessionInfo()), paste0(WD, "01_RESULTS/R_Session_info-GWAS_H1_uniquelyMapper.txt"))
+
+
+########################################################################################################################
+# PREPARE DATA FOR GWAS - H2
+########################################################################################################################
+SubPop <- read_csv(paste0(results_path, "02_POPULATION_STRUCTURE/dapc_H2.csv"))
+SubPop <- SubPop[, -1]
+meta_data_BLUEs_final <- merge(SubPop, meta_data_BLUEs_final, all.x = TRUE, by = "plot_number")
+meta_data_BLUEs_final$plot_number <- as.integer(meta_data_BLUEs_final$plot_number)
+
+########################################################################################################################
+# GWAS Step 1 - H2
+########################################################################################################################
+
+for (i in TOIs){
+  message(paste0("GWAS_H2 for ", i, " is being processed..."))
+  DOSAGE <- read.delim(paste0(WD, "00_DATA/DOSAGE_H2_small.csv"), sep = ",", row.names = 1)
+  # Function for calculation of the genomic inflation of each combination of all traits and gene models
+  genomic_inflation <- function(GWASpolyObject) {
+    # Assign a variable to the argument within the function
+    GWASpolyObject <- GWASpolyObject
+    # Create a dataframe containing all combinations of traits and model
+    model_frame <- data.frame(trait = rep(i, each=4), model = rep(c("additive", "general", "1-dom-alt", "1-dom-ref"), times = 1))
+    # Append a third column to the dataframe containing the individual lambdas as calculated using the `genomic_inflation_factor()` function
+    model_frame["lambda"] <- apply(X = model_frame, MARGIN = 1,
+                                   FUN = function(x){
+                                     trait <- x[1]
+                                     model <- x[2]
+                                     trait_results <- GWASpolyObject@scores[[trait]] %>% dplyr::select(all_of(model)) %>% as.vector()
+                                     median(qchisq(10^-na.omit(trait_results[[1]]), df=1, lower.tail=FALSE)) / qchisq(0.5, 1)
+                                   }
+    )
+    (model_frame)
+  }
+
+  # Filter the BLUEs to contain only those sample that were genotyped
+  names(DOSAGE) <- str_replace(names(DOSAGE), "X", "")
+
+  GWAS_strat <- meta_data_BLUEs_final[meta_data_BLUEs_final$plot_number %in% colnames(DOSAGE)[6:ncol(DOSAGE)],c("accession_name", paste0("blue_", i), "dapc_population_H2")]
+  colnames(GWAS_strat)[colnames(GWAS_strat) == paste0("blue_", i)] <- paste0("blue_", i)
+
+  var_names <- meta_data_BLUEs_final[as.character(meta_data_BLUEs_final$plot_number) %in% colnames(DOSAGE)[6:ncol(DOSAGE)], c("accession_name", "plot_number")]
+
+  # Change the actual sample names in the genotype file
+  colnames(DOSAGE)[6:ncol(DOSAGE)] <- var_names[match(var_names$plot_number, colnames(DOSAGE)[6:ncol(DOSAGE)]),1]
+
+  # Check if there are still any mismatches between the initial column names in the dosage file and the
+  sum(colnames(DOSAGE)[6:ncol(DOSAGE)] == var_names$plot_number)
+  sum(colnames(DOSAGE)[6:ncol(DOSAGE)] == var_names$accession_name)
+
+  # Save the filtered phenotype file and the modified genotype file again as GWASpoly can only handle paths and not loaded dataframes
+  write.table(x = DOSAGE, file = paste0(WD, "01_RESULTS/GWAS_FINAL_Dosage_Matrix_H2_uniquelyMapper.csv"), sep = ',')
+  write.table(x = GWAS_strat, file = paste0(WD, "01_RESULTS/", i, "_GWAS_strat_H2_uniquelyMapper.csv"), sep = ',', row.names=FALSE)
+
+  ########################################################################################################################
+  # GWAS Step 2 - H2
+  ########################################################################################################################
+  DOSAGE <- paste0(WD, "01_RESULTS/GWAS_FINAL_Dosage_Matrix_H2_uniquelyMapper.csv")
+  GWAS_strat <- paste0(WD, "01_RESULTS/", i, "_GWAS_strat_H2_uniquelyMapper.csv")
+
+  # Conduct GWAS using DAPC for population structure correction
+  data_strat <- read.GWASpoly(pheno.file = GWAS_strat, geno.file = DOSAGE,
+                              n.traits = 1, delim = ",", ploidy = 2, format = "numeric")
+
+  # Calculate additive kinship matrix for the GWAS using the LOCO mode
+  dataLoco_strat <- set.K(data_strat, LOCO=TRUE, n.core = 10)
+  params_strat <- set.params(P3D = FALSE, MAF = 0.05, fixed = "dapc_population_H2", fixed.type = "factor")
+  dataLocoGWAS_strat <- GWASpoly(data = dataLoco_strat, models = c("additive", "1-dom", "general"), traits = paste0("blue_", i), n.core = 10, params = params_strat)
+  dataLocoGWASThreshold_strat <- set.threshold(dataLocoGWAS_strat, method="Bonferroni", level=0.05)
+  save(dataLoco_strat, dataLocoGWAS_strat, dataLocoGWASThreshold_strat, file = paste0(WD, "01_RESULTS/GWAS_objects_", i, "_H2_uniquelyMapper.RData"))
+}
+
+writeLines(capture.output(sessionInfo()), paste0(WD, "01_RESULTS/R_Session_info-GWAS_H2_uniquelyMapper.txt"))
