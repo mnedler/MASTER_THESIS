@@ -1,0 +1,32 @@
+#!/bin/bash
+
+bcftools annotate --rename-chrs /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/rename_chromosomes.txt \
+/home/marina/Desktop/Masterarbeit/00_DATA/VARIANT_CALL_PYT500_H1_final.vcf.recode.vcf \
+-Ov \
+-o /home/marina/Desktop/Masterarbeit/00_DATA/PYT500_H1_renamed.vcf
+
+vcftools --vcf /home/marina/Desktop/Masterarbeit/00_DATA/PYT500_H1_renamed.vcf \
+--plink \
+--out /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK
+
+/home/marina/Documents/Bioinformatics/plink_linux_x86_64_20230116/plink --file /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK \
+--make-bed \
+--out /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK
+
+admixture /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK.bed 4
+
+bcftools annotate \
+--rename-chrs /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/rename_chromosomes.txt \
+/home/marina/Desktop/Masterarbeit/00_DATA/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF_MISSING.recode.vcf \
+-Ov \
+-o /home/marina/Desktop/Masterarbeit/00_DATA/PYT500_H2_renamed.vcf
+
+vcftools --vcf /home/marina/Desktop/Masterarbeit/00_DATA/PYT500_H2_renamed.vcf \
+--plink \
+--out /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK
+
+/home/marina/Documents/Bioinformatics/plink_linux_x86_64_20230116/plink --file /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK \
+--make-bed \
+--out /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK
+
+admixture /home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK.bed 4
