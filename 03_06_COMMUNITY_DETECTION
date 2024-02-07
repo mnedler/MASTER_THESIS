@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jul 17 10:12:58 2023
+
+@author: david
+"""
+
+# =============================================================================
+#  import modules
+# =============================================================================
+import os
+import subprocess
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib as matplotlib
+import seaborn as sns
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import kneighbors_graph
+from umap.umap_ import UMAP
+from sklearn.decomposition import PCA
+import networkx as nx
+import networkx.algorithms.community as nx_comm
+import itertools
+from scipy.stats import rankdata
+import string
+
+# =============================================================================
+#  change working directory
+# =============================================================================
+os.chdir(path = "/Volumes/CASTOR/SINDY/PYT500_NEW/")
+
+# =============================================================================
+# Run DESeq2 Rscript
+# =============================================================================
+'''
+subprocess.call("/usr/local/bin/Rscript /Volumes/CASTOR/SINDY/PYT500_NEW/XX_CODE/01_DESEQ2.R", 
+                shell=True)
+'''
+
+# =============================================================================
+#  load data
+# ============================================================================
+meta_data = pd.read_csv(
+    filepath_or_buffer="./00_DATA/PYT500_phenotype_data_original_2021.txt",
+    sep="\t",
+    index_col=0
+    )
+dosageH1 = pd.read_csv(
+    "./00_DATA/H1_Dosage_Matrix.csv",
+    index_col=0
+    ).iloc[:,[*range(4,258)]]
+dosageH2 = pd.read_csv(
+    "./00_DATA/H2_Dosage_Matrix.csv",
+    index_col=0
+    ).iloc[:,[*range(4,258)]]
+'''
+vst = pd.read_csv(
+    filepath_or_buffer="./00_DATA/VST.csv",
+    index_col=0
+    )
+norm=pd.read_csv(
+    filepath_or_buffer="./00_DATA/NORMALIZED.csv",
+    index_col=0
+    )
+
+# =============================================================================
+# define classes
+# =============================================================================
+class SampleCommunitiesPCA:
+    def __init__(self,logCounts,normCounts,metaData,groupVar=None,group=None):
+        if any(metaData.index != logCounts.columns) or any(metaData.index != normCounts.columns):
+            print("Warning: CountMatrix and MetaData do not match. Sorting columns")
+            self.logCounts = logCounts.loc[:,metaData.index.tolist()]
+            self.normCounts = normCounts.loc[:,metaData.index.tolist()]
+        else:
+            self.logCounts = logCounts
+            self.normCounts = normCounts
+        self.group = group
+        self.groupVar = groupVar
+        if groupVar != None:
+            self.Samples = metaData.loc[metaData[groupVar] == group,:].index.array 
+        else:self.Samples = metaData.index.array
+        self.metaData = metaData.loc[self.Samples,:]
+    def scale(self,with_mean=True,with_std=True):        
+        scaler = StandardScaler(with_mean=with_mean,with_std=with_std)        
+        self.Scaled = scaler.fit_transform(self.logCounts.T.loc[self.Samples,:])        
+        return self    
+    def depthFilter(self,thrsh=50):
+        tmp=self.normCounts.loc[:,self.Samples].mean(axis=1)>thrsh
+        self.DepthFeatures = self.normCounts.reset_index().index.array[tmp]
+        return self
+    def pca(self,nFeatures):        
+        self.Features = self.logCounts.reset_index().loc[self.DepthFeatures,self.Samples].var(axis=1).sort_values().tail(nFeatures).index.array        
+        self.Genes = self.logCounts.iloc[self.Features,:].index.tolist()        
+        self.PCA_input = self.Scaled[:,self.Features]        
+        pca = PCA(n_components=min(len(self.Samples),len(self.Features)))        
+        self.PCA = pca.fit(self.PCA_input)
+        return self
+    def louvain(self,minPCs=10,minPctVar=90,nNeighbors=10,resolution=1):
+        cumVar = self.PCA.explained_variance_ratio_.cumsum()
+        pcs = max(
+            len(cumVar[cumVar<(minPctVar/100)])+1,
+            minPCs
+             )
+        self.PCs = pcs
+        self.PCA_output = self.PCA.fit_transform(self.PCA_input)[:,[*range(pcs)]]
+        G = kneighbors_graph(
+            self.PCA_output,
+            n_neighbors = nNeighbors
+            ).toarray()
+        G = nx.from_numpy_array(G)
+        clusters = nx_comm.louvain_communities(G, resolution=resolution)
+        self.Clusters = clusters
+        self.metaData["Cluster"] = np.NaN
+        for index, cluster in enumerate(clusters): 
+            samples = self.Samples[list(cluster)]
+            self.metaData.loc[self.Samples[self.Samples.isin(samples)],
+                              "Cluster"] = list(string.ascii_uppercase)[index]
+        return self
+    def umap(self,nNeighbors=15,minDist=0.01):
+        reducer = UMAP(n_neighbors=nNeighbors,min_dist=minDist)
+        self.Embedding = reducer.fit(self.Scaled[:,self.DepthFeatures])
+        return self
+    def extractData(self,PCA=True,VarPCA=True,UMAP=True):
+        self.Export = {}
+        if PCA:
+            self.Export["PCA"] = pd.DataFrame(
+                data = self.PCA.fit_transform(self.PCA_input),
+                index = self.Samples,
+                columns = ("PC" + pd.Series(np.arange(self.PCA.n_components_)+1).astype(str))
+                )
+        if VarPCA:
+            self.Export["VarPCA"] = pd.DataFrame(
+                data = {
+                    "PC":("PC" + pd.Series(np.arange(self.PCA.n_components_)+1).astype(str)),
+                    "VarExplained":self.PCA.explained_variance_,
+                    "VarExplainedPct":self.PCA.explained_variance_ratio_*100,
+                    "CumVarExplained":(self.PCA.explained_variance_ratio_.cumsum()*100)
+                    }
+                )
+        if UMAP:
+            self.Export["UMAP"] = pd.DataFrame(
+                data = self.Embedding.embedding_,
+                index = self.Samples,
+                columns = ("UMAP" + pd.Series(np.arange(self.Embedding.n_components)+1).astype(str)))
+            
+'''            
+class SNPSampleCommunitiesPCA:
+    def __init__(self,dosageMatrix):
+        self.dosageMatrix = dosageMatrix.dropna(axis=0).T
+        self.Samples = self.dosageMatrix.index.array
+        self.Features = self.dosageMatrix.columns.array
+        self.metaData = pd.DataFrame(data={"Cluster":np.nan},index=self.Samples)
+    def scale(self,with_mean=True,with_std=False):        
+        scaler = StandardScaler(with_mean=with_mean,with_std=with_std)        
+        self.Scaled = scaler.fit_transform(self.dosageMatrix)        
+        return self    
+    def pca(self):        
+        self.PCA_input = self.Scaled      
+        pca = PCA(n_components=min(len(self.Samples),len(self.Features)))        
+        self.PCA = pca.fit(self.PCA_input)
+        return self
+    def louvain(self,minPCs=10,minPctVar=90,nNeighbors=10,resolution=1):
+        cumVar = self.PCA.explained_variance_ratio_.cumsum()
+        pcs = max(
+            len(cumVar[cumVar<(minPctVar/100)])+1,
+            minPCs
+             )
+        self.PCs = pcs
+        self.PCA_output = self.PCA.fit_transform(self.PCA_input)[:,[*range(pcs)]]
+        G = kneighbors_graph(
+            self.PCA_output,
+            n_neighbors = nNeighbors
+            ).toarray()
+        G = nx.from_numpy_array(G)
+        clusters = nx_comm.louvain_communities(G, resolution=resolution)
+        self.Clusters = clusters
+        for index, cluster in enumerate(clusters): 
+            samples = self.Samples[list(cluster)]
+            self.metaData.loc[self.Samples[self.Samples.isin(samples)],
+                              "Cluster"] = list(string.ascii_uppercase)[index]
+        return self
+    def umap(self,nNeighbors=15,minDist=0.01,nComponents=2):
+        reducer = UMAP(n_neighbors=nNeighbors,min_dist=minDist,n_components=nComponents)
+        self.Embedding = reducer.fit(self.Scaled)
+        return self
+    def extractData(self,PCA=True,VarPCA=True,UMAP=True):
+        self.Export = {}
+        if PCA:
+            self.Export["PCA"] = pd.DataFrame(
+                data = self.PCA.fit_transform(self.PCA_input),
+                index = self.Samples,
+                columns = ("PC" + pd.Series(np.arange(self.PCA.n_components_)+1).astype(str))
+                )
+        if VarPCA:
+            self.Export["VarPCA"] = pd.DataFrame(
+                data = {
+                    "PC":("PC" + pd.Series(np.arange(self.PCA.n_components_)+1).astype(str)),
+                    "VarExplained":self.PCA.explained_variance_,
+                    "VarExplainedPct":self.PCA.explained_variance_ratio_*100,
+                    "CumVarExplained":(self.PCA.explained_variance_ratio_.cumsum()*100)
+                    }
+                )
+        if UMAP:
+            self.Export["UMAP"] = pd.DataFrame(
+                data = self.Embedding.embedding_,
+                index = self.Samples,
+                columns = ("UMAP" + pd.Series(np.arange(self.Embedding.n_components)+1).astype(str)))
+
+# =============================================================================
+# snp communities
+# =============================================================================
+SNPComm = SNPSampleCommunitiesPCA(dosageH1)
+SNPComm.scale()
+SNPComm.pca()
+SNPComm.louvain(235,0,25,1)
+SNPComm.umap(50,0.01)
+SNPComm.extractData()
+Clusters = SNPComm.metaData
+
+# =============================================================================
+# save data
+# =============================================================================
+data_path= "./01_RESULTS/SNP_COMMUNITIES/H1/"
+os.makedirs(data_path,exist_ok=True)
+def saveFile(dataset):
+    tmp = SNPComm.Export[dataset].join(Clusters).sort_values("Cluster")
+    tmp.to_csv(data_path + dataset + ".csv")
+    return tmp
+umap = saveFile("UMAP")
+pca = saveFile("PCA")
+SNPComm.Export["VarPCA"].to_csv(data_path + "VarPCA.csv")
+
+# =============================================================================
+# umap plot
+# =============================================================================
+figure_path="./XX_FIGURES/COMMUNITIES/H1/"
+os.makedirs(figure_path,exist_ok=True)
+plotData = umap.copy()
+colors = plt.cm.plasma(np.linspace(0,1,len(plotData.Cluster.unique())))
+clusters, indices = np.unique(plotData.Cluster, return_inverse=True)
+plotData["color"] = indices
+f = lambda c: matplotlib.lines.Line2D([], [], linewidth=0, color = c, marker="o",
+                                      markeredgecolor = "black", markeredgewidth=.1)
+handles = [f(colors[i]) for i in plotData.color.unique()]
+labels = plotData.Cluster.unique()
+cm=1/2.54
+fig, ax = plt.subplots()
+fig.set_size_inches(8*cm,6*cm)
+ax.scatter(plotData.UMAP1,plotData.UMAP2,c=colors[plotData.color],s=16,
+           linewidths=.1,edgecolor="black")
+ax.tick_params(labelsize=6,size=2)
+fig.supxlabel("UMAP1",fontsize=8,weight="bold")
+fig.supylabel("UMAP2",fontsize=8,weight="bold")
+fig.suptitle("SNP Communities",fontsize = 9, weight="bold")
+legend=plt.legend(handles,labels,bbox_to_anchor=[1,1.05,0,0],title="Cluster",
+                  markerscale=.75,loc="upper left",fontsize=6,title_fontsize=7,
+                  alignment="left",handletextpad=0.1)
+legend.get_frame().set(linewidth=.75,edgecolor="black",facecolor="None")
+fig.add_artist(legend)
+sns.despine()
+plt.tight_layout() # produces correct pixel density in single plot, not multiple panes
+plt.subplots_adjust(top = .9, bottom = .15,right = 0.82, left = 0.15,hspace=.5)
+fig.savefig(figure_path + "SNP_UMAP.png", dpi=600,transparent=True)
+plt.show()
+
+# =============================================================================
+# umap plot
+# =============================================================================
+plotData = pca.copy()
+colors = plt.cm.plasma(np.linspace(0,1,len(plotData.Cluster.unique())))
+clusters, indices = np.unique(plotData.Cluster, return_inverse=True)
+plotData["color"] = indices
+f = lambda c: matplotlib.lines.Line2D([], [], linewidth=0, color = c, marker="o",
+                                      markeredgecolor = "black", markeredgewidth=.1)
+handles = [f(colors[i]) for i in plotData.color.unique()]
+labels = plotData.Cluster.unique()
+cm=1/2.54
+fig, ax = plt.subplots()
+fig.set_size_inches(8*cm,6*cm)
+ax.scatter(plotData.PC1,plotData.PC2,c=colors[plotData.color],s=16,
+           linewidths=.1,edgecolor="black")
+ax.tick_params(labelsize=6,size=2)
+fig.supxlabel("UMAP1",fontsize=8,weight="bold")
+fig.supylabel("UMAP2",fontsize=8,weight="bold")
+fig.suptitle("SNP Communities",fontsize = 9, weight="bold")
+legend=plt.legend(handles,labels,bbox_to_anchor=[1,1.05,0,0],title="Cluster",
+                  markerscale=.75,loc="upper left",fontsize=6,title_fontsize=7,
+                  alignment="left",handletextpad=0.1)
+legend.get_frame().set(linewidth=.75,edgecolor="black",facecolor="None")
+fig.add_artist(legend)
+sns.despine()
+plt.tight_layout() # produces correct pixel density in single plot, not multiple panes
+plt.subplots_adjust(top = .9, bottom = .15,right = 0.82, left = 0.15,hspace=.5)
+fig.savefig(figure_path + "SNP_PCA.png", dpi=600,transparent=True)
+plt.show()
+
+# =============================================================================
+# analysis
+# =============================================================================
+SNPComm = SNPSampleCommunitiesPCA(dosageH2)
+SNPComm.scale()
+SNPComm.pca()
+SNPComm.louvain(235,0,25,1)
+SNPComm.umap(50,0.01)
+SNPComm.extractData()
+Clusters = SNPComm.metaData
+
+# =============================================================================
+# save data
+# =============================================================================
+data_path= "./01_RESULTS/SNP_COMMUNITIES/H2/"
+os.makedirs(data_path,exist_ok=True)
+def saveFile(dataset):
+    tmp = SNPComm.Export[dataset].join(Clusters).sort_values("Cluster")
+    tmp.to_csv(data_path + dataset + ".csv")
+    return tmp
+umap = saveFile("UMAP")
+pca = saveFile("PCA")
+SNPComm.Export["VarPCA"].to_csv(data_path + "VarPCA.csv")
+
+# =============================================================================
+# umap plot
+# =============================================================================
+figure_path="./XX_FIGURES/COMMUNITIES/H2/"
+os.makedirs(figure_path,exist_ok=True)
+plotData = umap.copy()
+colors = plt.cm.plasma(np.linspace(0,1,len(plotData.Cluster.unique())))
+clusters, indices = np.unique(plotData.Cluster, return_inverse=True)
+plotData["color"] = indices
+f = lambda c: matplotlib.lines.Line2D([], [], linewidth=0, color = c, marker="o",
+                                      markeredgecolor = "black", markeredgewidth=.1)
+handles = [f(colors[i]) for i in plotData.color.unique()]
+labels = plotData.Cluster.unique()
+cm=1/2.54
+fig, ax = plt.subplots()
+fig.set_size_inches(8*cm,6*cm)
+ax.scatter(plotData.UMAP1,plotData.UMAP2,c=colors[plotData.color],s=16,
+           linewidths=.1,edgecolor="black")
+ax.tick_params(labelsize=6,size=2)
+fig.supxlabel("UMAP1",fontsize=8,weight="bold")
+fig.supylabel("UMAP2",fontsize=8,weight="bold")
+fig.suptitle("SNP Communities",fontsize = 9, weight="bold")
+legend=plt.legend(handles,labels,bbox_to_anchor=[1,1.05,0,0],title="Cluster",
+                  markerscale=.75,loc="upper left",fontsize=6,title_fontsize=7,
+                  alignment="left",handletextpad=0.1)
+legend.get_frame().set(linewidth=.75,edgecolor="black",facecolor="None")
+fig.add_artist(legend)
+sns.despine()
+plt.tight_layout() # produces correct pixel density in single plot, not multiple panes
+plt.subplots_adjust(top = .9, bottom = .15,right = 0.82, left = 0.15,hspace=.5)
+fig.savefig(figure_path + "SNP_UMAP.png", dpi=600,transparent=True)
+plt.show()
+
+# =============================================================================
+# umap plot
+# =============================================================================
+plotData = pca.copy()
+colors = plt.cm.plasma(np.linspace(0,1,len(plotData.Cluster.unique())))
+clusters, indices = np.unique(plotData.Cluster, return_inverse=True)
+plotData["color"] = indices
+f = lambda c: matplotlib.lines.Line2D([], [], linewidth=0, color = c, marker="o",
+                                      markeredgecolor = "black", markeredgewidth=.1)
+handles = [f(colors[i]) for i in plotData.color.unique()]
+labels = plotData.Cluster.unique()
+cm=1/2.54
+fig, ax = plt.subplots()
+fig.set_size_inches(8*cm,6*cm)
+ax.scatter(plotData.PC1,plotData.PC2,c=colors[plotData.color],s=16,
+           linewidths=.1,edgecolor="black")
+ax.tick_params(labelsize=6,size=2)
+fig.supxlabel("UMAP1",fontsize=8,weight="bold")
+fig.supylabel("UMAP2",fontsize=8,weight="bold")
+fig.suptitle("SNP Communities",fontsize = 9, weight="bold")
+legend=plt.legend(handles,labels,bbox_to_anchor=[1,1.05,0,0],title="Cluster",
+                  markerscale=.75,loc="upper left",fontsize=6,title_fontsize=7,
+                  alignment="left",handletextpad=0.1)
+legend.get_frame().set(linewidth=.75,edgecolor="black",facecolor="None")
+fig.add_artist(legend)
+sns.despine()
+plt.tight_layout() # produces correct pixel density in single plot, not multiple panes
+plt.subplots_adjust(top = .9, bottom = .15,right = 0.82, left = 0.15,hspace=.5)
