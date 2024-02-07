@@ -1,0 +1,269 @@
+#####Libraries
+library("UpSetR")
+library("dplyr")
+library("maditr")
+library("svglite")
+
+#####Set Directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- "/home/marina/Desktop/Masterarbeit/01_RESULTS/"
+figure_path <- "/home/marina/Desktop/Masterarbeit/02_FIGURES/"
+
+#####Loading and prepearing Data
+#Admixture
+#####Connecting H1 and H2 
+#Loading remaning files
+admix_old_H1 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/admixture_cluster_assignment_H1.csv"))
+admix_old_H2 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/admixture_cluster_assignment_H2.csv"))
+
+admix_old_H1 <- admix_old_H1[, -1]
+admix_old_H2 <- admix_old_H2[, -1]
+
+#Defining function and prepearing H1
+getPopulation <- function(row) {
+  maxPop <- which.max(row[1:4])
+  return(c(names(admix_old_H1)[maxPop], row["plot_number"]))
+}
+
+admix_H1 <- data.frame(t(apply(admix_old_H1, 1, getPopulation)))
+names(admix_H1) <- c("maxPop", "plot_number")
+colnames(admix_H1)[1] <- "Admixture_cluster_H1"
+admix_H1$Admixture_cluster_H1 <- gsub("V", "", admix_H1$Admixture_cluster_H1)
+
+write.csv(admix_H1, paste0(results_path, "02_POPULATION_STRUCTURE/admixture_cluster_assignment_H1"))
+
+#Defining function and prepearing H2
+getPopulation <- function(row) {
+  maxPop <- which.max(row[1:4])
+  return(c(names(admix_old_H2)[maxPop], row["plot_number"]))
+}
+
+admix_H2 <- data.frame(t(apply(admix_old_H2, 1, getPopulation)))
+names(admix_H2) <- c("maxPop", "plot_number")
+colnames(admix_H2)[1] <- "Admixture_cluster_H2"
+admix_H2$Admixture_cluster_H2 <- gsub("V", "", admix_H2$Admixture_cluster_H2)
+
+write.csv(admix_H2, paste0(results_path, "02_POPULATION_STRUCTURE/admixture_cluster_assignment_H2"))
+
+#Prepearing for Upset Plot
+admix_H1 <- select(admix_H1, Admixture_cluster_H1, plot_number)
+admix_H1 <- as.data.frame(lapply(admix_H1, as.integer))
+
+colnames(admix_H1)[1] <- "Admixture_cluster_H1"
+admix_H1 <- dcast(admix_H1, plot_number~Admixture_cluster_H1)
+admix_H1[is.na(admix_H1)] <- as.integer(0)
+set_binary <- function(admix_H1) {
+  for (column in names(admix_H1)[-1]) {
+    admix_H1[admix_H1[[column]] > 0, column] <- 1
+  }
+  return(admix_H1)
+}
+admix_H1_upset <- set_binary(admix_H1)
+
+names(admix_H1_upset)[2] <- "ADMIXTURE_1"
+names(admix_H1_upset)[3] <- "ADMIXTURE_2"
+names(admix_H1_upset)[4] <- "ADMIXTURE_3"
+names(admix_H1_upset)[5] <- "ADMIXTURE_4"
+write.csv(admix_H1_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/admix_H1.csv"))
+
+
+admix_H2 <- as.data.frame(lapply(admix_H2, as.integer))
+
+admix_H2 <- dcast(admix_H2, plot_number~Admixture_cluster_H2)
+admix_H2[is.na(admix_H2)] <- as.integer(0)
+set_binary <- function(admix_H2) {
+  for (column in names(admix_H2)[-1]) {
+    admix_H2[admix_H2[[column]] > 0, column] <- 1
+  }
+  return(admix_H2)
+}
+admix_H2_upset <- set_binary(admix_H2)
+
+names(admix_H2_upset)[2] <- "ADMIXTURE_1"
+names(admix_H2_upset)[3] <- "ADMIXTURE_2"
+names(admix_H2_upset)[4] <- "ADMIXTURE_3"
+names(admix_H2_upset)[5] <- "ADMIXTURE_4"
+write.csv(admix_H2_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/admix_H2.csv"))
+
+
+#DAPC
+dapc <- read.csv("/home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/H1_DAPC_cluster_assignment_uniquelyMapper.txt", sep = "\t")
+dapc_H1 <- select(dapc, dapc_population_H1, plot_number)
+dapc_H1 <- as.data.frame(lapply(dapc_H1, as.integer))
+names(dapc_H1)[1] <- "DAPC_cluster_H1"
+
+dapc_H1 <- dcast(dapc_H1, plot_number~DAPC_cluster_H1)
+dapc_H1[is.na(dapc_H1)] <- as.integer(0)
+set_binary <- function(dapc_H1) {
+  for (column in names(dapc_H1)[-1]) {
+    dapc_H1[dapc_H1[[column]] > 0, column] <- 1
+  }
+  return(dapc_H1)
+}
+dapc_H1_upset <- set_binary(dapc_H1)
+
+names(dapc_H1_upset)[2] <- "DAPC_1"
+names(dapc_H1_upset)[3] <- "DAPC_2"
+names(dapc_H1_upset)[4] <- "DAPC_3"
+names(dapc_H1_upset)[5] <- "DAPC_4"
+write.csv(dapc_H1_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/dapc_H1.csv"))
+
+dapc_H2 <- select(dapc, dapc_population_H2, plot_number)
+dapc_H2 <- as.data.frame(lapply(dapc_H2, as.integer))
+names(dapc_H2)[1] <- "Dapc_cluster_H2"
+
+dapc_H2 <- dcast(dapc_H2, plot_number~Dapc_cluster_H2)
+dapc_H2[is.na(dapc_H2)] <- as.integer(0)
+set_binary <- function(dapc_H2) {
+  for (column in names(dapc_H2)[-1]) {
+    dapc_H2[dapc_H2[[column]] > 0, column] <- 1
+  }
+  return(dapc_H2)
+}
+dapc_H2_upset <- set_binary(dapc_H2)
+
+names(dapc_H2_upset)[2] <- "DAPC_1"
+names(dapc_H2_upset)[3] <- "DAPC_2"
+names(dapc_H2_upset)[4] <- "DAPC_3"
+names(dapc_H2_upset)[5] <- "DAPC_4"
+write.csv(dapc_H2_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/dapc_H2.csv"))
+
+dapc_H1_upset <- read.csv("/home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/dapc_H1.csv")
+dapc_H1_upset <- dapc_H1_upset[, -1]
+dapc_H2_upset <- read.csv("/home/marina/Desktop/Masterarbeit/01_RESULTS/02_POPULATION_STRUCTURE/dapc_H2.csv")
+dapc_H2_upset <- dapc_H2_upset[, -1]
+colnames(dapc_H2_upset)[colnames(dapc_H2_upset) == "X4"] <- "DAPC_4"
+
+#####Community Detection - Louvain
+
+#Prepearing Lovain Table - Community detection
+#H1
+louvain_H1 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/UMAP_H1_uniquelyMapper.csv"))
+louvain_H1$louvain_pop <- ifelse(louvain_H1$Cluster == "A", 1, ifelse(louvain_H1$Cluster == "B", 2, 
+    ifelse(louvain_H1$Cluster == "C", 3, ifelse(louvain_H1$Cluster == "D", 4, ifelse(louvain_H1$Cluster == "E", 5, NA)))))
+colnames(louvain_H1)[1] <- "plot_number"
+louvain_H1$plot_number <- gsub("P", "", louvain_H1$plot_number)
+colnames(louvain_H1)[5] <- "louvain_cluster_H1"
+louvain_H1 <- select(louvain_H1, plot_number, louvain_cluster_H1)
+
+write.csv(louvain_H1, paste0(results_path, "02_POPULATION_STRUCTURE/louvain_cluster_assignment_H1.csv"))
+
+#H2
+louvain_H2 <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/UMAP_H2_uniquelyMapper.csv"))
+louvain_H2$louvain_pop <- ifelse(louvain_H2$Cluster == "A", 1, ifelse(louvain_H2$Cluster == "B", 2, 
+    ifelse(louvain_H2$Cluster == "C", 3, ifelse(louvain_H2$Cluster == "D", 4, ifelse(louvain_H2$Cluster == "E", 5, 
+    ifelse(louvain_H2$Cluster == "F", 6, NA))))))
+colnames(louvain_H2)[1] <- "plot_number"
+colnames(louvain_H2)[5] <- "louvain_cluster_H2"
+louvain_H2$plot_number <- gsub("P", "", louvain_H2$plot_number)
+louvain_H2 <- select(louvain_H2, plot_number, louvain_cluster_H2)
+
+write.csv(louvain_H2, paste0(results_path, "02_POPULATION_STRUCTURE/louvain_cluster_assignment_H2.csv"))
+
+
+#Prepearing for Upset Plot
+louvain_H1 <- select(louvain_H1, plot_number, louvain_cluster_H1)
+louvain_H1 <- as.data.frame(lapply(louvain_H1, as.integer))
+
+louvain_H1 <- dcast(louvain_H1, plot_number~louvain_cluster_H1)
+louvain_H1[is.na(louvain_H1)] <- as.integer(0)
+set_binary <- function(louvain_H1) {
+  for (column in names(louvain_H1)[-1]) {
+    louvain_H1[louvain_H1[[column]] > 0, column] <- 1
+  }
+  return(louvain_H1)
+}
+louvain_H1_upset <- set_binary(louvain_H1)
+
+names(louvain_H1_upset)[2] <- "LOUVAIN_1"
+names(louvain_H1_upset)[3] <- "LOUVAIN_2"
+names(louvain_H1_upset)[4] <- "LOUVAIN_3"
+names(louvain_H1_upset)[5] <- "LOUVAIN_4"
+write.csv(louvain_H1_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/louvain_H1.csv"))
+
+
+louvain_H2 <- select(louvain_H2, plot_number, louvain_cluster_H2)
+louvain_H2 <- as.data.frame(lapply(louvain_H2, as.integer))
+
+louvain_H2 <- dcast(louvain_H2, plot_number~louvain_cluster_H2)
+louvain_H2[is.na(louvain_H2)] <- as.integer(0)
+set_binary <- function(louvain_H2) {
+  for (column in names(louvain_H2)[-1]) {
+    louvain_H2[louvain_H2[[column]] > 0, column] <- 1
+  }
+  return(louvain_H2)
+}
+louvain_H2_upset <- set_binary(louvain_H2)
+
+names(louvain_H2_upset)[2] <- "LOUVAIN_1"
+names(louvain_H2_upset)[3] <- "LOUVAIN_2"
+names(louvain_H2_upset)[4] <- "LOUVAIN_3"
+names(louvain_H2_upset)[5] <- "LOUVAIN_4"
+write.csv(louvain_H2_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/louvain_H2.csv"))
+
+#Ward D2 neighbor joining
+ward <- read.csv(paste0(results_path, "02_POPULATION_STRUCTURE/ward_cluster_assignment.csv"))
+ward_H1 <- select(ward, plot_number, Ward.D2.Cluster.H1)
+ward_H1 <- as.data.frame(lapply(ward_H1, as.integer))
+names(ward_H1)[2] <- "ward_cluster_H1"
+
+ward_H1 <- dcast(ward_H1, plot_number~ward_cluster_H1)
+ward_H1[is.na(ward_H1)] <- as.integer(0)
+set_binary <- function(ward_H1) {
+  for (column in names(ward_H1)[-1]) {
+    ward_H1[ward_H1[[column]] > 0, column] <- 1
+  }
+  return(ward_H1)
+}
+ward_H1_upset <- set_binary(ward_H1)
+
+names(ward_H1_upset)[2] <- "WARD_1"
+names(ward_H1_upset)[3] <- "WARD_2"
+names(ward_H1_upset)[4] <- "WARD_3"
+names(ward_H1_upset)[5] <- "WARD_4"
+write.csv(ward_H1_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/ward_H1.csv"))
+
+
+ward_H2 <- select(ward, plot_number, Ward.D2.Cluster.H2)
+ward_H2 <- as.data.frame(lapply(ward_H2, as.integer))
+names(ward_H2)[2] <- "ward_cluster_H2"
+
+ward_H2 <- dcast(ward_H2, plot_number~ward_cluster_H2)
+ward_H2[is.na(ward_H2)] <- as.integer(0)
+set_binary <- function(ward_H2) {
+  for (column in names(ward_H2)[-1]) {
+    ward_H2[ward_H2[[column]] > 0, column] <- 1
+  }
+  return(ward_H2)
+}
+ward_H2_upset <- set_binary(ward_H2)
+
+names(ward_H2_upset)[2] <- "WARD_1"
+names(ward_H2_upset)[3] <- "WARD_2"
+names(ward_H2_upset)[4] <- "WARD_3"
+names(ward_H2_upset)[5] <- "WARD_4"
+write.csv(ward_H2_upset, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/ward_H2.csv"))
+
+
+######Creating complete dataframe and upset plot, diagrams exported at 1000x1000
+upset_complete_H1 <- left_join(admix_H1_upset, dapc_H1_upset, by = join_by(plot_number == plot_number))
+upset_complete_H1 <- left_join(upset_complete_H1, louvain_H1_upset, by = join_by(plot_number == plot_number))
+upset_complete_H1 <- left_join(upset_complete_H1, ward_H1_upset, by = join_by(plot_number == plot_number))
+write.csv(upset_complete_H1, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/upset_complete_H1.csv"))
+
+svg(paste0(figure_path, "02_POPULATION_STRUCTURE/UPSET_H1_final.svg"), 12, 12)
+upset(upset_complete_H1, sets = c("ADMIXTURE_1", "ADMIXTURE_2", "ADMIXTURE_3", "ADMIXTURE_4", "DAPC_1", 
+  "DAPC_2", "DAPC_3", "DAPC_4", "LOUVAIN_1", "LOUVAIN_2", "LOUVAIN_3", "LOUVAIN_4", "WARD_1", "WARD_2", 
+  "WARD_3", "WARD_4"), text.scale = 2)
+dev.off()
+
+upset_complete_H2 <- left_join(admix_H2_upset, dapc_H2_upset, by = join_by(plot_number == plot_number))
+upset_complete_H2 <- left_join(upset_complete_H2, louvain_H2_upset, by = join_by(plot_number == plot_number))
+upset_complete_H2 <- left_join(upset_complete_H2, ward_H2_upset, by = join_by(plot_number == plot_number))
+write.csv(upset_complete_H2, paste0(results_path, "02_POPULATION_STRUCTURE/UPSET_PLOT/upset_complete_H2.csv"))
+
+svg(paste0(figure_path, "02_POPULATION_STRUCTURE/UPSET_H2_final.svg"), 12, 12)
+upset(upset_complete_H2, sets = c("ADMIXTURE_1", "ADMIXTURE_2", "ADMIXTURE_3", "ADMIXTURE_4", "DAPC_1", 
+   "DAPC_2", "DAPC_3", "DAPC_4", "LOUVAIN_1", "LOUVAIN_2", "LOUVAIN_3", "LOUVAIN_4", "WARD_1", "WARD_2", 
+   "WARD_3", "WARD_4"), text.scale = 2)
+dev.off()
