@@ -1,0 +1,1135 @@
+#####Loading Libraries
+library("GWASpoly")
+library("png")
+library("ggplot2")
+library("dplyr")
+library("stringr")
+library("ggrepel")
+
+#####Set directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- paste0(WD, "01_RESULTS/03_GWAS/")
+figure_path <- paste0(WD, "02_FIGURES/03_GWAS/MANHATTAN/")
+
+
+######Loading Data
+#To adapt for different haplotypes and traits: choose the fitting data, adapt the blues,
+#adapt the extracted marker names and paths to save the pictures
+
+
+##########DRY MATTER#################################################
+#H1##################################################################
+load(paste0(results_path, "H1_GWAS_objects_dm_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_dm"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Creating a dataframe for each model
+additive <- subset(p_values, select = c(CHR, SNP, BP, additive))
+colnames(additive)[4] ="P"
+additive$BP <- as.numeric(additive$BP)
+additive <- na.omit(additive)
+
+general <- subset(p_values, select = c(CHR, SNP, BP, general))
+colnames(general)[4] ="P"
+general$BP <- as.numeric(general$BP)
+general <- na.omit(general)
+
+domref <- subset(p_values, select = c(CHR, SNP, BP, domref))
+colnames(domref)[4] ="P"
+domref$BP <- as.numeric(domref$BP)
+domref <- na.omit(domref)
+
+domalt <- subset(p_values, select = c(CHR, SNP, BP, domalt))
+colnames(domalt)[4] ="P"
+domalt$BP <- as.numeric(domalt$BP)
+domalt <- na.omit(domalt)
+
+marker <- read.csv(paste0(results_path, "MARKER_DM_H1.csv"))
+snpsOfInterest <- as.vector(marker$X)
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+#####ADDITIVE
+################################################################################
+
+add <- additive %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(additive, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_add, "yes", "no"))
+
+axisdf = add %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_dm_additive.png"), width = 3000, height = 800, res = 300)
+ggplot(add, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 7)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_add, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(add, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(add, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("Additive")
+
+dev.off()
+
+#####GENERAL
+################################################################################
+
+gen <- general %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(general, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_gen, "yes", "no"))
+
+axisdf = gen %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_dm_general.png"), width = 3000, height = 800, res = 300)
+ggplot(gen, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 7)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_gen, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(gen, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(gen, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("General")
+
+dev.off()
+
+#####1-DOM-ALT
+################################################################################
+
+alt <- domalt %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domalt, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>=thres_alt, "yes", "no"))
+
+axisdf = alt %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_dm_1domalt.png"), width = 3000, height = 800, res = 300)
+ggplot(alt, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 7)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_alt, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(alt, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(alt, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-alt")
+
+dev.off()
+
+#####1-DOM-REF
+################################################################################
+
+ref <- domref %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domref, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_ref, "yes", "no"))
+
+axisdf = ref %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_dm_1domref.png"), width = 3000, height = 800, res = 300)
+ggplot(ref, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 8)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_ref, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(ref, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(ref, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-ref")
+
+dev.off()
+
+#H2##################################################################
+load(paste0(results_path, "H2_GWAS_objects_dm_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_dm"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Creating a dataframe for each model
+additive <- subset(p_values, select = c(CHR, SNP, BP, additive))
+colnames(additive)[4] ="P"
+additive$BP <- as.numeric(additive$BP)
+additive <- na.omit(additive)
+
+general <- subset(p_values, select = c(CHR, SNP, BP, general))
+colnames(general)[4] ="P"
+general$BP <- as.numeric(general$BP)
+general <- na.omit(general)
+
+domref <- subset(p_values, select = c(CHR, SNP, BP, domref))
+colnames(domref)[4] ="P"
+domref$BP <- as.numeric(domref$BP)
+domref <- na.omit(domref)
+
+domalt <- subset(p_values, select = c(CHR, SNP, BP, domalt))
+colnames(domalt)[4] ="P"
+domalt$BP <- as.numeric(domalt$BP)
+domalt <- na.omit(domalt)
+
+marker <- read.csv(paste0(results_path, "MARKER_DM_H2.csv"))
+snpsOfInterest <- as.vector(marker$X)
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+#####ADDITIVE
+################################################################################
+
+add <- additive %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(additive, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_add, "yes", "no"))
+
+axisdf = add %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_dm_additive.png"), width = 3000, height = 800, res = 300)
+ggplot(add, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 7.5)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_add, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(add, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(add, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("Additive")
+
+dev.off()
+
+#####GENERAL
+################################################################################
+
+gen <- general %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(general, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_gen, "yes", "no"))
+
+axisdf = gen %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_dm_general.png"), width = 3000, height = 800, res = 300)
+ggplot(gen, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 7)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_gen, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(gen, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(gen, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("General")
+
+dev.off()
+
+#####1-DOM-ALT
+################################################################################
+
+alt <- domalt %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domalt, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>=thres_alt, "yes", "no"))
+
+axisdf = alt %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_dm_1domalt.png"), width = 3000, height = 800, res = 300)
+ggplot(alt, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 8)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_alt, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(alt, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(alt, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-alt")
+
+dev.off()
+
+#####1-DOM-REF
+################################################################################
+
+ref <- domref %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domref, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_ref, "yes", "no"))
+
+axisdf = ref %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_dm_1domref.png"), width = 3000, height = 800, res = 300)
+ggplot(ref, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 8)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_ref, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(ref, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(ref, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-ref")
+
+dev.off()
+
+
+
+
+##########ROOT FRESHWEIGHT#################################################
+#H1##################################################################
+load(paste0(results_path, "H1_GWAS_objects_rtwt_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_rtwt"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Creating a dataframe for each model
+additive <- subset(p_values, select = c(CHR, SNP, BP, additive))
+colnames(additive)[4] ="P"
+additive$BP <- as.numeric(additive$BP)
+additive <- na.omit(additive)
+
+general <- subset(p_values, select = c(CHR, SNP, BP, general))
+colnames(general)[4] ="P"
+general$BP <- as.numeric(general$BP)
+general <- na.omit(general)
+
+domref <- subset(p_values, select = c(CHR, SNP, BP, domref))
+colnames(domref)[4] ="P"
+domref$BP <- as.numeric(domref$BP)
+domref <- na.omit(domref)
+
+domalt <- subset(p_values, select = c(CHR, SNP, BP, domalt))
+colnames(domalt)[4] ="P"
+domalt$BP <- as.numeric(domalt$BP)
+domalt <- na.omit(domalt)
+
+marker <- read.csv(paste0(results_path, "MARKER_RTWT_H1.csv"))
+snpsOfInterest <- as.vector(marker$X)
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+#####ADDITIVE
+################################################################################
+
+add <- additive %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(additive, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_add, "yes", "no"))
+
+axisdf = add %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_rtwt_additive.png"), width = 3000, height = 800, res = 300)
+ggplot(add, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 12)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_add, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(add, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(add, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("Additive")
+
+dev.off()
+
+#####GENERAL
+################################################################################
+
+gen <- general %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(general, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_gen, "yes", "no"))
+
+axisdf = gen %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_rtwt_general.png"), width = 3000, height = 800, res = 300)
+ggplot(gen, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 10)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_gen, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(gen, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(gen, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("General")
+
+dev.off()
+
+#####1-DOM-ALT
+################################################################################
+
+alt <- domalt %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domalt, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>=thres_alt, "yes", "no"))
+
+axisdf = alt %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_rtwt_1domalt.png"), width = 3000, height = 800, res = 300)
+ggplot(alt, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 11)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_alt, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(alt, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(alt, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-alt")
+
+dev.off()
+
+#####1-DOM-REF
+################################################################################
+
+ref <- domref %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domref, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_ref, "yes", "no"))
+
+axisdf = ref %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H1_rtwt_1domref.png"), width = 3000, height = 800, res = 300)
+ggplot(ref, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 10)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_ref, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(ref, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(ref, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-ref")
+
+dev.off()
+
+#H2##################################################################
+load(paste0(results_path, "H2_GWAS_objects_rtwt_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_rtwt"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Creating a dataframe for each model
+additive <- subset(p_values, select = c(CHR, SNP, BP, additive))
+colnames(additive)[4] ="P"
+additive$BP <- as.numeric(additive$BP)
+additive <- na.omit(additive)
+
+general <- subset(p_values, select = c(CHR, SNP, BP, general))
+colnames(general)[4] ="P"
+general$BP <- as.numeric(general$BP)
+general <- na.omit(general)
+
+domref <- subset(p_values, select = c(CHR, SNP, BP, domref))
+colnames(domref)[4] ="P"
+domref$BP <- as.numeric(domref$BP)
+domref <- na.omit(domref)
+
+domalt <- subset(p_values, select = c(CHR, SNP, BP, domalt))
+colnames(domalt)[4] ="P"
+domalt$BP <- as.numeric(domalt$BP)
+domalt <- na.omit(domalt)
+
+marker <- read.csv(paste0(results_path, "MARKER_RTWT_H2.csv"))
+snpsOfInterest <- as.vector(marker$X)
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+#####ADDITIVE
+################################################################################
+
+add <- additive %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(additive, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_add, "yes", "no"))
+
+axisdf = add %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_rtwt_additive.png"), width = 3000, height = 800, res = 300)
+ggplot(add, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 11)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_add, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(add, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(add, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("Additive")
+
+dev.off()
+
+#####GENERAL
+################################################################################
+
+gen <- general %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(general, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_gen, "yes", "no"))
+
+axisdf = gen %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_rtwt_general.png"), width = 3000, height = 800, res = 300)
+ggplot(gen, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 10)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_gen, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(gen, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(gen, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("General")
+
+dev.off()
+
+#####1-DOM-ALT
+################################################################################
+
+alt <- domalt %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domalt, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>=thres_alt, "yes", "no"))
+
+axisdf = alt %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_rtwt_1domalt.png"), width = 3000, height = 800, res = 300)
+ggplot(alt, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 10)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_alt, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(alt, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(alt, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-alt")
+
+dev.off()
+
+#####1-DOM-REF
+################################################################################
+
+ref <- domref %>% 
+  
+  # Compute chromosome size
+  group_by(CHR) %>% 
+  summarise(chr_len=max(BP)) %>% 
+  
+  # Calculate cumulative position of each chromosome
+  mutate(tot=cumsum(chr_len)-chr_len) %>%
+  select(-chr_len) %>%
+  
+  # Add this info to the initial dataset
+  left_join(domref, ., by=c("CHR"="CHR")) %>%
+  
+  # Add a cumulative position of each SNP
+  arrange(CHR, BP) %>%
+  mutate(BPcum=BP+tot) %>%
+  mutate( is_highlight=ifelse(SNP %in% snpsOfInterest, "yes", "no")) %>%
+  mutate( is_annotate=ifelse(P>thres_ref, "yes", "no"))
+
+axisdf = ref %>% group_by(CHR) %>% summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
+
+png(paste0(figure_path, "H2_rtwt_1domref.png"), width = 3000, height = 800, res = 300)
+ggplot(ref, aes(x=BPcum, y=P)) +
+  
+  # Show all points
+  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+  scale_color_manual(values = rep(c("darkgrey", "lightgrey"), 18 )) +
+  
+  # custom X axis:
+  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center) +
+  scale_y_continuous(expand = c(0, 0) , name = expression(-log[10](P)), limits = c(0, 9)) +     # remove space between plot area and x axis
+  geom_hline(yintercept = thres_ref, linetype = "dashed", color = "red") +
+  
+  # Add highlighted points
+  geom_point(data=subset(ref, is_highlight=="yes"), color="orange", size=2) +
+  
+  # Add label using ggrepel to avoid overlapping
+  #geom_label_repel( data=subset(ref, is_annotate=="yes"), aes(label=SNP), size=2) +
+  
+  
+  # Custom the theme:
+  theme_bw() +
+  theme( 
+    legend.position="none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(x = "Chromosome") +
+  ggtitle("1-dom-ref")
+
+dev.off()
