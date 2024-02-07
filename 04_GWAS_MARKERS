@@ -1,0 +1,191 @@
+#####Loading Libraries
+library("GWASpoly")
+library("png")
+library("ggplot2")
+library("dplyr")
+library("stringr")
+library("ggrepel")
+
+#####Set directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- paste0(WD, "01_RESULTS/03_GWAS/")
+figure_path <- paste0(WD, "02_FIGURES/03_GWAS/MANHATTAN/")
+
+##########DRY MATTER#################################################
+#H1##################################################################
+load(paste0(results_path, "H1_GWAS_objects_dm_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_dm"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+#Filtering for significant Markers
+marker_add <- subset(p_values, additive > thres_add)
+marker_gen <- subset(p_values, general > thres_gen)
+marker_domalt <- subset(p_values, domalt > thres_alt)
+marker_domref <- subset(p_values, domref > thres_ref)
+
+marker_dm_H1 <- rbind(marker_add, marker_domalt, marker_domref, marker_gen)
+remove <- c("chromosomeXIV_132808671", "chromosomeXIV_90563121", "chromosomeXIV_91027591")
+marker_dm_H1 <- marker_dm_H1[!(rownames(marker_dm_H1) %in% remove), ]
+write.csv(marker_dm_H1, paste0(results_path, "MARKER_DM_H1.csv"))
+
+
+#H2##################################################################
+load(paste0(results_path, "H2_GWAS_objects_dm_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_dm"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+#Filtering for significant Markers
+marker_add <- subset(p_values, additive > thres_add)
+marker_gen <- subset(p_values, general > thres_gen)
+marker_domalt <- subset(p_values, domalt > thres_alt)
+marker_domref <- subset(p_values, domref > thres_ref)
+
+marker_dm_H2 <- rbind(marker_add, marker_domalt, marker_domref, marker_gen)
+marker_dm_H2 <- subset(marker_dm_H2, rownames(marker_dm_H2) != "chromosomeXIV_87181481")
+write.csv(marker_dm_H2, paste0(results_path, "MARKER_DM_H2.csv"))
+
+##########ROOT FRESHWEIGHT#################################################
+#H1##################################################################
+load(paste0(results_path, "H1_GWAS_objects_rtwt_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_rtwt"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+
+#Filtering for significant Markers
+#jeweils die top drei pro Modell wurden extrahiert
+marker_add <- subset(p_values, additive > thres_add)
+marker_add_sorted <- marker_add[order(marker_add$additive, decreasing = TRUE),]
+marker_add_sorted <- marker_add_sorted[1:3,]
+
+marker_gen <- subset(p_values, general > thres_gen)
+marker_gen_sorted <- marker_gen[order(marker_gen$general, decreasing = TRUE),]
+marker_gen_sorted <- marker_gen_sorted[1:3,]
+
+marker_domalt <- subset(p_values, domalt > thres_alt)
+marker_domalt_sorted <- marker_domalt[order(marker_domalt$domalt, decreasing = TRUE),]
+marker_domalt_sorted <- marker_domalt_sorted[1:3,]
+
+marker_domref <- subset(p_values, domref > thres_ref)
+marker_domref_sorted <- marker_domref[order(marker_domref$domref, decreasing = TRUE),]
+marker_domref_sorted <- marker_domref_sorted[1:3,]
+
+marker_rtwt_H1 <- rbind(marker_add_sorted, marker_domalt_sorted, marker_domref_sorted, marker_gen_sorted)
+remove <- c("chromosomeXIV_91905131", "chromosomeXIV_88885161", "chromosomeXIV_88885162", "chromosomeXIV_88458381")
+marker_rtwt_H1 <- marker_rtwt_H1[!(rownames(marker_rtwt_H1) %in% remove), ]
+write.csv(marker_rtwt_H1, paste0(results_path, "MARKER_RTWT_H1.csv"))
+
+
+#H2##################################################################
+load(paste0(results_path, "H2_GWAS_objects_rtwt_uniquelyMapper.RData"))
+p_values <- dataLocoGWASThreshold_strat@scores[["blue_rtwt"]]
+
+#Prepearing data: Columns SNP, CHR, BP and each model calculated
+Chromosomes <- rownames(p_values)
+p_values <- cbind(Chromosomes,p_values)
+p_values$SNP <- p_values$Chromosomes
+p_values$POS <- str_extract(p_values$Chromosomes, pattern = "_.*")
+p_values$POS <- gsub("_","", p_values$POS)
+p_values$Chromosomes <- gsub("chromosome", "", p_values$Chromosomes)
+p_values$Chromosomes <- gsub("_.*","", p_values$Chromosomes)
+p_values$Chromosomes <- match(p_values$Chromosomes, c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"))
+colnames(p_values)[1] ="CHR"
+colnames(p_values)[7] ="BP"
+colnames(p_values)[4] ="domalt"
+colnames(p_values)[5] ="domref"
+p_values<- p_values[!grepl("^JAIPMD", rownames(p_values)), ]
+
+
+#Extracting significance thresholds for each model
+threshold <- dataLocoGWASThreshold_strat@threshold
+thres_add <- threshold[, "additive"]
+thres_gen <- threshold[, "general"]
+thres_ref <- threshold[, "1-dom-ref"]
+thres_alt <- threshold[, "1-dom-alt"]
+
+
+#Filtering for significant Markers
+#jeweils die top drei pro Modell wurden extrahiert
+marker_add <- subset(p_values, additive > thres_add)
+marker_add_sorted <- marker_add[order(marker_add$additive, decreasing = TRUE),]
+marker_add_sorted <- marker_add_sorted[1:3,]
+
+marker_gen <- subset(p_values, general > thres_gen)
+marker_gen_sorted <- marker_gen[order(marker_gen$general, decreasing = TRUE),]
+marker_gen_sorted <- marker_gen_sorted[1:3,]
+
+marker_domalt <- subset(p_values, domalt > thres_alt)
+marker_domalt_sorted <- marker_domalt[order(marker_domalt$domalt, decreasing = TRUE),]
+marker_domalt_sorted <- marker_domalt_sorted[1:3,]
+
+marker_domref <- subset(p_values, domref > thres_ref)
+marker_domref_sorted <- marker_domref[order(marker_domref$domref, decreasing = TRUE),]
+marker_domref_sorted <- marker_domref_sorted[1:3,]
+
+marker_rtwt_H2 <- rbind(marker_add_sorted, marker_domalt_sorted, marker_domref_sorted, marker_gen_sorted)
+remove <- c("chromosomeXIV_85031041", "chromosomeXIV_85031042", "chromosomeXIV_84688461", "chromosomeXIV_64241621")
+marker_rtwt_H2 <- marker_rtwt_H2[!(rownames(marker_rtwt_H2) %in% remove), ]
+write.csv(marker_rtwt_H2, paste0(results_path, "MARKER_RTWT_H2.csv"))
