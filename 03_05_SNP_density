@@ -1,0 +1,99 @@
+#####Libraries
+library(vcfR)
+library(tidyverse)
+library(dplyr)
+
+#####Set Directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- "/home/marina/Desktop/Masterarbeit/01_RESULTS/"
+figure_path <- "/home/marina/Desktop/Masterarbeit/02_FIGURES/"
+
+#####Loading VCF-files
+#H1
+H1 <- read.vcfR(paste0(WD, "00_DATA/VARIANT_CALL_PYT500_H1_final.recode.vcf"))
+snp_data_H1 <- extract.gt(H1)
+write.csv(snp_data_H1, paste0(results_path, "snp_H1.csv"))
+
+snp_data_H1 <- read.csv(paste0(results_path, "snp_H1.csv"))
+names(snp_data_H1) <- sub("X.media.stephan.YUBARTA.SINDY.HAPLOTYPE_RESOLVED.01_MAPPED_DATA.H1.05_MAPPED_DATA.P", "", 
+                                            names(snp_data_H1))
+names(snp_data_H1) <- gsub("_uniquelyMapper_Aligned.sortedByCoord.out.bam", "", 
+                                            names(snp_data_H1))
+
+#H2
+H2 <- read.vcfR(paste0(WD, "00_DATA/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF_MISSING.recode.vcf"))
+snp_data_H2 <- extract.gt(H2)
+write.csv(snp_data_H2, paste0(results_path, "snp_H2.csv"))
+
+snp_data_H2 <- read.csv(paste0(results_path, "snp_H2.csv"))
+names(snp_data_H2) <- sub("X.media.stephan.YUBARTA.SINDY.HAPLOTYPE_RESOLVED.01_MAPPED_DATA.H2.05_MAPPED_DATA.P", "", 
+                          names(snp_data_H2))
+names(snp_data_H2) <- gsub("_uniquelyMapper_Aligned.sortedByCoord.out.bam", "", 
+                           names(snp_data_H2))
+
+
+#####Adaptation of the data to use it as an input for the SNP-plotting tool (heatmap)
+#H1
+snp_H1_heatmap <- snp_data_H1 %>% separate(X, into = c("chr", "pos"), sep = "_")
+snp_H1_heatmap_new <- cbind(number = 1:nrow(snp_H1_heatmap), snp_H1_heatmap)
+snp_H1_heatmap_new <- snp_H1_heatmap_new[1:3]
+
+snp_H1_heatmap_new <- snp_H1_heatmap_new %>%
+  mutate(chr = case_when(
+    chr == "chromosomeI" ~ "1",
+    chr == "chromosomeII" ~ "2",
+    chr == "chromosomeIII" ~ "3",
+    chr == "chromosomeIV" ~ "4",
+    chr == "chromosomeV" ~ "5",
+    chr == "chromosomeVI" ~ "6",
+    chr == "chromosomeVII" ~ "7",
+    chr == "chromosomeVIII" ~ "8",
+    chr == "chromosomeIX" ~ "9",
+    chr == "chromosomeX" ~ "10",
+    chr == "chromosomeXI" ~ "11",
+    chr == "chromosomeXII" ~ "12",
+    chr == "chromosomeXIII" ~ "13",
+    chr == "chromosomeXIV" ~ "14",
+    chr == "chromosomeXV" ~ "15",
+    chr == "chromosomeXVI" ~ "16",
+    chr == "chromosomeXVII" ~ "17",
+    chr == "chromosomeXVIII" ~ "18"
+    ))
+
+snp_H1_heatmap_new <- snp_H1_heatmap_new %>%
+  mutate(across(everything(), as.integer))
+
+write.table(snp_H1_heatmap_new, file = paste0(results_path, "02_POPULATION_STRUCTURE/snp_H1_heat.txt"), sep ="\t", row.names = FALSE, col.names = FALSE)
+
+#H2
+snp_H2_heatmap <- snp_data_H2 %>% separate(X, into = c("chr", "pos"), sep = "_")
+snp_H2_heatmap_new <- cbind(number = 1:nrow(snp_H2_heatmap), snp_H2_heatmap)
+snp_H2_heatmap_new <- snp_H2_heatmap_new[1:3]
+
+snp_H2_heatmap_new <- snp_H2_heatmap_new %>%
+  mutate(chr = case_when(
+    chr == "chromosomeI" ~ "1",
+    chr == "chromosomeII" ~ "2",
+    chr == "chromosomeIII" ~ "3",
+    chr == "chromosomeIV" ~ "4",
+    chr == "chromosomeV" ~ "5",
+    chr == "chromosomeVI" ~ "6",
+    chr == "chromosomeVII" ~ "7",
+    chr == "chromosomeVIII" ~ "8",
+    chr == "chromosomeIX" ~ "9",
+    chr == "chromosomeX" ~ "10",
+    chr == "chromosomeXI" ~ "11",
+    chr == "chromosomeXII" ~ "12",
+    chr == "chromosomeXIII" ~ "13",
+    chr == "chromosomeXIV" ~ "14",
+    chr == "chromosomeXV" ~ "15",
+    chr == "chromosomeXVI" ~ "16",
+    chr == "chromosomeXVII" ~ "17",
+    chr == "chromosomeXVIII" ~ "18"
+  ))
+
+snp_H2_heatmap_new <- snp_H2_heatmap_new %>%
+  mutate(across(everything(), as.integer))
+
+write.table(snp_H2_heatmap_new, file = paste0(results_path, "02_POPULATION_STRUCTURE/snp_H2_heat.txt"), sep ="\t", row.names = FALSE, col.names = FALSE)
+
