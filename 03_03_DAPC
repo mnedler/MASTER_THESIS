@@ -1,0 +1,51 @@
+#####Libraries
+library("adegenet")
+library("vcfR")
+library("VariantAnnotation")
+
+#####Set Directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- "/home/marina/Desktop/Masterarbeit/01_RESULTS/"
+figure_path <- "/home/marina/Desktop/Masterarbeit/02_FIGURES/"
+
+#####Einlesen und Konvertieren der VCF Files
+VCF_H1 <- read.vcfR(paste0(WD, "00_DATA/VARIANT_CALL_PYT500_H1_final.recode.vcf"))
+VCF_H2 <- read.vcfR(paste0(WD, "00_DATA/VARIANT_CALL_PYT500_H2_uniquelyMapper_filtered_for_QUAL_DP_BIALLELIC_MAF_MISSING.recode.vcf"))
+
+vcfGenind_H1 <- vcfR2genind(VCF_H1)
+vcfGenind_H2 <- vcfR2genind(VCF_H2)
+
+
+#####Clustering: find groups
+#Choose the number PCs to retain (>= 1): 235
+#Choose the number of clusters (>=2): 4, number of discriminant functions = 4
+
+set.seed(43)
+
+#H1
+grp_H1 <- find.clusters(vcfGenind_H1, max.n.clust=10)
+dapc1 <- dapc(vcfGenind_H1, grp_H1$grp, n.pca = 235, n.da = 2, var.contrib = TRUE, scale = FALSE)
+
+pop_H1 <- dapc1$posterior
+df_pop_H1 <- data.frame(plot_number = rownames(pop_H1), dapc_population_H1 = apply(pop_H1, 1, which.max))
+df_pop_H1$plot_number <- gsub("/media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H1/05_MAPPED_DATA/P", "", df_pop_H1$plot_number)
+df_pop_H1$plot_number <- gsub("_uniquelyMapper_Aligned.sortedByCoord.out.bam", "", df_pop_H1$plot_number)
+
+
+#H2
+grp_H2 <- find.clusters(vcfGenind_H2, max.n.clust=10)
+dapc2 <- dapc(vcfGenind_H2, grp_H2$grp, n.pca = 235, n.da = 2, var.contrib = TRUE, scale = FALSE)
+pop_H2 <- dapc2$posterior
+df_pop_H2 <- data.frame(plot_number = rownames(pop_H2), dapc_population_H2 = apply(pop_H2, 1, which.max))
+
+df_pop_H2$plot_number <- gsub("/media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H2/05_MAPPED_DATA/P", "", df_pop_H2$plot_number)
+df_pop_H2$plot_number <- gsub("_uniquelyMapper_Aligned.sortedByCoord.out.bam", "", df_pop_H2$plot_number)
+
+#Generating a table containing the cluster assignments
+cluster_assignment <- merge(df_pop_H1, df_pop_H2, by = "plot_number")
+write.csv(cluster_assignment, "/media/rna/KINGSTON/DAPC/DAPC_cluster_assignment.csv")
+
+
+#####Plotting: Scatterplots
+scatter(dapc1, clabel = TRUE, scree.pca = TRUE, posi.pca = "topright", cleg = 0.3, inset.solid = 1, grid = TRUE)
+scatter(dapc2, clabel = TRUE, scree.pca = TRUE, posi.pca = "topright", cleg = 0.3, inset.solid = 1, grid = TRUE)
