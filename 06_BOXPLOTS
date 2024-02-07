@@ -1,0 +1,1002 @@
+#####Loading libraries
+library(GWASpoly)
+library(png)
+library(ggplot2)
+library(dplyr)
+
+#####Set directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- paste0(WD, "01_RESULTS/03_GWAS/")
+figure_path <- paste0(WD, "02_FIGURES/")
+
+#####Loading data
+phenofile <- read.csv(paste0(WD, "00_DATA/PYT500_phenotype_data_filtered.txt"), sep = "\t")
+
+#########Boxplots with Dosage Matrix: Dry Matter
+#Haplotype 2
+load(paste0(results_path, "H2_GWAS_objects_dm_uniquelyMapper.RData"))
+#############################################################################################
+#Selecting required phenotype and marker data
+phenofile <- select(phenofile, accession_name, dm)
+marker <- read.csv(paste0(results_path, "MARKER_DM_H2.csv"))
+marker_dm_H2 <- marker$X
+
+#Extracting and writing SNP data to file
+map <- dataLocoGWASThreshold_strat@map
+data_dm_H2 <- subset(map, Marker %in% marker_dm_H2)
+write.csv(data_dm_H2, paste0(results_path, "marker/dm_H2.csv"))
+
+#Filtering geno-File (=Dosage Matrix) for marker genes
+geno <- dataLocoGWASThreshold_strat@geno
+geno <- as.data.frame(geno)
+geno_filtered <- geno[, colnames(geno) %in% data_dm_H2$Marker]
+
+
+#Marker 1/4 chromosomeXIV_8718148
+#############################################################################
+#Extracting the accession names for each genotype
+dm_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8718148 == 0, ])
+dm_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8718148 == 1, ])
+dm_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8718148 == 2, ])
+
+pheno_dm_H2_0 <- subset(phenofile, accession_name %in% dm_H2_0)
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% mutate(Group = "TT")
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% select(Group, dm)
+
+pheno_dm_H2_1 <- subset(phenofile, accession_name %in% dm_H2_1)
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% mutate(Group = "TC")
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% select(Group, dm)
+
+pheno_dm_H2_2 <- subset(phenofile, accession_name %in% dm_H2_2)
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% mutate(Group = "CC")
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H2_0, pheno_dm_H2_1, pheno_dm_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_dm_chromosomeXIV_8718148_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TC", "CC")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0.1, height = 0), color = "black", size = 1, alpha = 0.5) +
+  labs(title = "Chr14_8718148",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 195", 
+                              "TC" = "TC \n n = 40",
+                              "CC" = "CC \n n = 6")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+
+#Marker 2/4 chromosomeXIV_7797371
+#############################################################################
+dm_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7797371 == 0, ])
+dm_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7797371 == 1, ])
+dm_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7797371 == 2, ])
+
+pheno_dm_H2_0 <- subset(phenofile, accession_name %in% dm_H2_0)
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% mutate(Group = "GG")
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% select(Group, dm)
+
+pheno_dm_H2_1 <- subset(phenofile, accession_name %in% dm_H2_1)
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% mutate(Group = "GA")
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% select(Group, dm)
+
+pheno_dm_H2_2 <- subset(phenofile, accession_name %in% dm_H2_2)
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% mutate(Group = "AA")
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H2_0, pheno_dm_H2_1, pheno_dm_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_dm_chromosomeXIV_7797371_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("GG", "GA", "AA")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0.1, height = 0), color = "black", size = 1, alpha = 0.5) +
+  labs(title = "Chr14_7797371",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("GG" = "GG \n n = 117", 
+                              "GA" = "GA \n n = 109",
+                              "AA" = "AA \n n = 15")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 3/4 chromosomeXIV_7230633
+dm_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7230633 == 0, ])
+dm_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7230633 == 1, ])
+dm_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7230633 == 2, ])
+
+pheno_dm_H2_0 <- subset(phenofile, accession_name %in% dm_H2_0)
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% mutate(Group = "AA")
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% select(Group, dm)
+
+pheno_dm_H2_1 <- subset(phenofile, accession_name %in% dm_H2_1)
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% mutate(Group = "AG")
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% select(Group, dm)
+
+pheno_dm_H2_2 <- subset(phenofile, accession_name %in% dm_H2_2)
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% mutate(Group = "GG")
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H2_0, pheno_dm_H2_1, pheno_dm_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_dm_chromosomeXIV_7230633_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("AA", "AG", "GG")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_7230633",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("AA" = "AA \n n = 98", 
+                              "AG" = "AG \n n = 125",
+                              "GG" = "GG \n n = 18")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 4/4 chromosomeXIV_6977837
+dm_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6977837 == 0, ])
+dm_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6977837 == 1, ])
+dm_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6977837 == 2, ])
+
+pheno_dm_H2_0 <- subset(phenofile, accession_name %in% dm_H2_0)
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% mutate(Group = "TT")
+pheno_dm_H2_0 <- pheno_dm_H2_0 %>% select(Group, dm)
+
+pheno_dm_H2_1 <- subset(phenofile, accession_name %in% dm_H2_1)
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% mutate(Group = "TC")
+pheno_dm_H2_1 <- pheno_dm_H2_1 %>% select(Group, dm)
+
+pheno_dm_H2_2 <- subset(phenofile, accession_name %in% dm_H2_2)
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% mutate(Group = "CC")
+pheno_dm_H2_2 <- pheno_dm_H2_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H2_0, pheno_dm_H2_1, pheno_dm_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_dm_chromosomeXIV_6977837_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TC", "CC")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_6977837",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 95", 
+                              "TC" = "TC \n n = 123",
+                              "CC" = "CC \n n = 23")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+######################################################################################
+#H1
+#######################################################################################
+#Selecting required phenotype and marker data
+load(paste0(results_path, "H1_GWAS_objects_dm_uniquelyMapper.RData"))
+phenofile <- read.csv(paste0(WD, "00_DATA/PYT500_phenotype_data_filtered.txt"), sep = "\t")
+phenofile <- select(phenofile, accession_name, dm)
+marker <- read.csv(paste0(results_path, "MARKER_DM_H1.csv"))
+marker_dm_H1 <- marker$X
+
+#Extracting and writing SNP data to file
+map <- dataLocoGWASThreshold_strat@map
+data_dm_H1 <- subset(map, Marker %in% marker_dm_H1)
+write.csv(data_dm_H1, paste0(results_path, "marker/dm_H1.csv"))
+
+#Filtering geno-File (=Dosage Matrix) for marker genes
+geno <- dataLocoGWASThreshold_strat@geno
+geno <- as.data.frame(geno)
+geno_filtered <- geno[, colnames(geno) %in% data_dm_H1$Marker]
+
+map <- dataLocoGWASThreshold_strat@map
+data_dm_H1 <- subset(map, Marker %in% marker_dm_H1)
+
+
+#Marker 1/9 chromosomeXIV_7300532
+dm_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7300532 == 0, ])
+dm_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7300532 == 1, ])
+dm_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7300532 == 2, ])
+
+pheno_dm_H1_0 <- subset(phenofile, accession_name %in% dm_H1_0)
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% mutate(Group = "TT")
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% select(Group, dm)
+
+pheno_dm_H1_1 <- subset(phenofile, accession_name %in% dm_H1_1)
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% mutate(Group = "TC")
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% select(Group, dm)
+
+pheno_dm_H1_2 <- subset(phenofile, accession_name %in% dm_H1_2)
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% mutate(Group = "CC")
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H1_0, pheno_dm_H1_1, pheno_dm_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_dm_chromosomeXIV_7300532_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TC", "CC")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_7300532",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 95", 
+                              "TC" = "TC \n n = 123",
+                              "CC" = "CC \n n = 23")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+
+#Marker 2/9 chromosomeXIV_8154099
+dm_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8154099 == 0, ])
+dm_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8154099 == 1, ])
+dm_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8154099 == 2, ])
+
+pheno_dm_H1_0 <- subset(phenofile, accession_name %in% dm_H1_0)
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% mutate(Group = "GG")
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% select(Group, dm)
+
+pheno_dm_H1_1 <- subset(phenofile, accession_name %in% dm_H1_1)
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% mutate(Group = "GA")
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% select(Group, dm)
+
+pheno_dm_H1_2 <- subset(phenofile, accession_name %in% dm_H1_2)
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% mutate(Group = "AA")
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H1_0, pheno_dm_H1_1, pheno_dm_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_dm_chromosomeXIV_8154099_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("GG", "GA", "AA")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_8154099",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("GG" = "GG \n n = 117", 
+                              "GA" = "GA \n n = 109",
+                              "AA" = "AA \n n = 15")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 3/9 chromosomeXIV_9056312
+dm_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9056312 == 0, ])
+dm_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9056312 == 1, ])
+dm_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9056312 == 2, ])
+
+pheno_dm_H1_0 <- subset(phenofile, accession_name %in% dm_H1_0)
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% mutate(Group = "GG")
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% select(Group, dm)
+
+pheno_dm_H1_1 <- subset(phenofile, accession_name %in% dm_H1_1)
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% mutate(Group = "GA")
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% select(Group, dm)
+
+pheno_dm_H1_2 <- subset(phenofile, accession_name %in% dm_H1_2)
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% mutate(Group = "AA")
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H1_0, pheno_dm_H1_1, pheno_dm_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_dm_chromosomeXIV_9056312_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("GG", "GA", "AA")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_9056312",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("GG" = "GG \n n = 173", 
+                              "GA" = "GA \n n = 67",
+                              "AA" = "AA \n n = 1")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+
+#Marker 4/9 chromosomeXIV_9102562
+#removed after second GWAS
+
+
+#Marker 5/6 chromosomeXIV_9102576
+#removed after second GWAS
+
+
+#Marker 6/9 chromosomeXIV_9102759
+dm_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9102759 == 0, ])
+dm_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9102759 == 1, ])
+dm_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9102759 == 2, ])
+
+pheno_dm_H1_0 <- subset(phenofile, accession_name %in% dm_H1_0)
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% mutate(Group = "TT")
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% select(Group, dm)
+
+pheno_dm_H1_1 <- subset(phenofile, accession_name %in% dm_H1_1)
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% mutate(Group = "TC")
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% select(Group, dm)
+
+pheno_dm_H1_2 <- subset(phenofile, accession_name %in% dm_H1_2)
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% mutate(Group = "CC")
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H1_0, pheno_dm_H1_1, pheno_dm_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_dm_chromosomeXIV_9102759_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TC", "CC")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_9102759",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 195", 
+                              "TC" = "TC \n n = 40",
+                              "CC" = "CC \n n = 6")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 7/9 chromosomeXIV_12995983
+#removed after second GWAS
+
+
+#Marker 8/9 chromosomeXIV_12996006
+#removed after second GWAS
+
+
+#Marker 9/9 chromosomeXIV_13280867
+dm_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_13280867 == 0, ])
+dm_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_13280867 == 1, ])
+dm_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_13280867 == 2, ])
+
+pheno_dm_H1_0 <- subset(phenofile, accession_name %in% dm_H1_0)
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% mutate(Group = "AA")
+pheno_dm_H1_0 <- pheno_dm_H1_0 %>% select(Group, dm)
+
+pheno_dm_H1_1 <- subset(phenofile, accession_name %in% dm_H1_1)
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% mutate(Group = "AG")
+pheno_dm_H1_1 <- pheno_dm_H1_1 %>% select(Group, dm)
+
+pheno_dm_H1_2 <- subset(phenofile, accession_name %in% dm_H1_2)
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% mutate(Group = "GG")
+pheno_dm_H1_2 <- pheno_dm_H1_2 %>% select(Group, dm)
+
+combined_data <- bind_rows(pheno_dm_H1_0, pheno_dm_H1_1, pheno_dm_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_dm_chromosomeXIV_13280867_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("AA", "AG", "GG")), y = dm, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_13280867",
+       x = "",
+       y = "Dry Matter") +
+  scale_x_discrete(labels = c("AA" = "AA \n n = 173", 
+                              "AG" = "AG \n n = 60",
+                              "GG" = "GG \n n = 8")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+######################################################################################################
+#####ROOT FRESHWEIGHT H1
+######################################################################################################
+#Selecting required phenotype and marker data
+load(paste0(results_path, "H1_GWAS_objects_rtwt_uniquelyMapper.RData"))
+phenofile <- read.csv(paste0(WD, "00_DATA/PYT500_phenotype_data_filtered.txt"), sep = "\t")
+phenofile <- select(phenofile, accession_name, rtwt)
+
+marker <- read.csv(paste0(results_path, "MARKER_RTWT_H1.csv"))
+marker_rtwt_H1 <- marker$X
+
+#Extracting and writing SNP data to file
+map <- dataLocoGWASThreshold_strat@map
+data_rtwt_H1 <- subset(map, Marker %in% marker_rtwt_H1)
+write.csv(data_rtwt_H1, paste0(results_path, "marker/rtwt_H1.csv"))
+
+#Filtering geno-File (=Dosage Matrix) for marker genes
+geno <- dataLocoGWASThreshold_strat@geno
+geno <- as.data.frame(geno)
+geno_filtered <- geno[, colnames(geno) %in% data_rtwt_H1$Marker]
+
+map <- dataLocoGWASThreshold_strat@map
+data_rtwt_H1 <- subset(map, Marker %in% marker_rtwt_H1)
+
+
+#Marker 1/8 chromosomeXIV_6811862
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6811862 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6811862 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6811862 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "GG")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "GA")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "AA")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_6811862_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("GG", "GA", "AA")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_6811862",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("GG" = "GG \n n = 181", 
+                              "GA" = "GA \n n = 58",
+                              "AA" = "AA \n n = 2")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 2/8 chromosomeXIV_6811925
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6811925 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6811925 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6811925 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "TT")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "TG")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "GG")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_6811925_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_6811925",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 181", 
+                              "TG" = "TG \n n = 58",
+                              "GG" = "GG \n n = 2")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 3/8 chromosomeXIV_7891962
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7891962 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7891962 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7891962 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "TT")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "TA")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "AA")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_7891962_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TA", "AA")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_7891962",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 196", 
+                              "TA" = "TA \n n = 1",
+                              "AA" = "AA \n n = 44")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+#Marker 4/8 chromosomeXIV_8845838
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8845838 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8845838 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8845838 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "TT")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "TG")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "GG")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_8845838_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_8845838",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 196", 
+                              "TG" = "TG \n n = 40",
+                              "GG" = "GG \n n = 5")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 5/8 chromosomeXIV_8888516
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8888516 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8888516 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8888516 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "CC")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "CT")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "TT")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_8888516_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("CC", "CT", "TT")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_8888516",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("CC" = "CC \n n = 198", 
+                              "CT" = "CT \n n = 43",
+                              "TT" = "TT \n n = 0")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+#Marker 6/8 chromosomeXIV_9190513
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9190513 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9190513 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9190513 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "AA")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "AG")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "GG")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_9190513_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("AA", "AG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_9190513",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("AA" = "AA \n n = 201", 
+                              "AG" = "AG \n n = 40",
+                              "GG" = "GG \n n = 0")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 7/8 chromosomeXIV_11367821
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_11367821 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_11367821 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_11367821 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "AA")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "AG")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "GG")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_11367821_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("AA", "AG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_11367821",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("AA" = "AA \n n = 198", 
+                              "AG" = "AG \n n = 0",
+                              "GG" = "GG \n n = 43")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+
+#Marker 8/8 chromosomeXIV_11377866
+rtwt_H1_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_11377866 == 0, ])
+rtwt_H1_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_11377866 == 1, ])
+rtwt_H1_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_11377866 == 2, ])
+
+pheno_rtwt_H1_0 <- subset(phenofile, accession_name %in% rtwt_H1_0)
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% mutate(Group = "AA")
+pheno_rtwt_H1_0 <- pheno_rtwt_H1_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_1 <- subset(phenofile, accession_name %in% rtwt_H1_1)
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% mutate(Group = "AG")
+pheno_rtwt_H1_1 <- pheno_rtwt_H1_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H1_2 <- subset(phenofile, accession_name %in% rtwt_H1_2)
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% mutate(Group = "GG")
+pheno_rtwt_H1_2 <- pheno_rtwt_H1_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H1_0, pheno_rtwt_H1_1, pheno_rtwt_H1_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H1_rtwt_chromosomeXIV_11377866_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("AA", "AG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_11377866",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("AA" = "AA \n n = 198", 
+                              "AG" = "AG \n n = 10",
+                              "GG" = "GG \n n = 33")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+######################################################################################################
+#####ROOT FRESHWEIGHT H2
+######################################################################################################
+#Selecting required phenotype and marker data
+load(paste0(results_path, "H2_GWAS_objects_rtwt_uniquelyMapper.RData"))
+phenofile <- read.csv(paste0(WD, "00_DATA/PYT500_phenotype_data_filtered.txt"), sep = "\t")
+phenofile <- select(phenofile, accession_name, rtwt)
+
+marker <- read.csv(paste0(results_path, "MARKER_RTWT_H2.csv"))
+marker_rtwt_H2 <- marker$X
+
+#Extracting and writing SNP data to file
+map <- dataLocoGWASThreshold_strat@map
+data_rtwt_H2 <- subset(map, Marker %in% marker_rtwt_H2)
+write.csv(data_rtwt_H2, paste0(results_path, "marker/rtwt_H2.csv"))
+
+#Filtering geno-File (=Dosage Matrix) for marker genes
+geno <- dataLocoGWASThreshold_strat@geno
+geno <- as.data.frame(geno)
+geno_filtered <- geno[, colnames(geno) %in% data_rtwt_H2$Marker]
+
+map <- dataLocoGWASThreshold_strat@map
+data_rtwt_H2 <- subset(map, Marker %in% marker_rtwt_H2)
+
+
+#Marker 1/8 chromosomeXIV_6424162
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6424162 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6424162 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6424162 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "GG")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "GA")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "AA")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_6424162_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("GG", "GA", "AA")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_6424162",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("GG" = "GG \n n = 181", 
+                              "GA" = "GA \n n = 58",
+                              "AA" = "AA \n n = 2")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 2/8 chromosomeXIV_6424225
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6424225 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6424225 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_6424225 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "TT")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "TG")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "GG")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_6424225_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_6424225",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 181", 
+                              "TG" = "TG \n n = 58",
+                              "GG" = "GG \n n = 2")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 3/8 chromosomeXIV_7539540
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7539540 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7539540 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_7539540 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "TT")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "TA")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "AA")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_7539540_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TA", "AA")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_7539540",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 196", 
+                              "TA" = "TA \n n = 1",
+                              "AA" = "AA \n n = 44")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 4/8 chromosomeXIV_8468846
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8468846 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8468846 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8468846 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "TT")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "TG")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "GG")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_8468846_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_8468846",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 196", 
+                              "TG" = "TG \n n = 40",
+                              "GG" = "GG \n n = 5")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 5/8 chromosomeXIV_8503104
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8503104 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8503104 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_8503104 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "CC")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "CT")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "TT")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_8503104_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("CC", "CT", "TT")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_8503104",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("CC" = "CC \n n = 198", 
+                              "CT" = "CT \n n = 43",
+                              "TT" = "TT \n n = 0")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 6/8 chromosomeXIV_9471967
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9471967 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9471967 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_9471967 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "TT")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "TA")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "AA")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_9471967_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("TT", "TA", "AA")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_9471967",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("TT" = "TT \n n = 199", 
+                              "TA" = "TA \n n = 42",
+                              "AA" = "AA \n n = 0")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 7/8 chromosomeXIV_10937540
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_10937540 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_10937540 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_10937540 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "AA")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "AG")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "GG")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_10937540_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("AA", "AG", "GG")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_6424162",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("AA" = "AA \n n = 198", 
+                              "AG" = "AG \n n = 0",
+                              "GG" = "GG \n n = 43")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
+
+
+#Marker 8/8 chromosomeXIV_10937769
+rtwt_H2_0 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_10937769 == 0, ])
+rtwt_H2_1 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_10937769 == 1, ])
+rtwt_H2_2 <- rownames(geno_filtered[geno_filtered$chromosomeXIV_10937769 == 2, ])
+
+pheno_rtwt_H2_0 <- subset(phenofile, accession_name %in% rtwt_H2_0)
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% mutate(Group = "GG")
+pheno_rtwt_H2_0 <- pheno_rtwt_H2_0 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_1 <- subset(phenofile, accession_name %in% rtwt_H2_1)
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% mutate(Group = "GT")
+pheno_rtwt_H2_1 <- pheno_rtwt_H2_1 %>% select(Group, rtwt)
+
+pheno_rtwt_H2_2 <- subset(phenofile, accession_name %in% rtwt_H2_2)
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% mutate(Group = "TT")
+pheno_rtwt_H2_2 <- pheno_rtwt_H2_2 %>% select(Group, rtwt)
+
+combined_data <- bind_rows(pheno_rtwt_H2_0, pheno_rtwt_H2_1, pheno_rtwt_H2_2)
+combined_data <- na.omit(combined_data)
+
+png(paste0(figure_path, "03_GWAS/H2_rtwt_chromosomeXIV_10937769_boxplot.png"), width = 1000, height = 1000, res = 300)
+ggplot(combined_data, aes(x = factor(Group, levels = c("GG", "GT", "TT")), y = rtwt, fill = Group)) +
+  geom_boxplot() +
+  #geom_jitter(position = position_jitter(width = 0, height = 0), color = "black", size = 1.5) +
+  labs(title = "Chr14_10937769",
+       x = "",
+       y = "Root Freshweight") +
+  scale_x_discrete(labels = c("GG" = "GG \n n = 198", 
+                              "GT" = "GT \n n = 0",
+                              "TT" = "TT \n n = 43")) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+dev.off()
