@@ -1,0 +1,47 @@
+#####Libraries
+library("ggplot2")
+library("stringr")
+library("dplyr")
+
+#####Set Directories
+WD <- "/home/marina/Desktop/Masterarbeit/"
+results_path <- "/home/marina/Desktop/Masterarbeit/01_RESULTS/"
+figure_path <- "/home/marina/Desktop/Masterarbeit/02_FIGURES/"
+
+#####Load Data
+p_H1 <- read.table(paste0(results_path, "02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK.4.P"))
+p_H2 <- read.table(paste0(results_path, "02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK.4.P"))
+
+q_H1 <- read.table(paste0(results_path, "02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK.4.Q"), header = FALSE)
+q_H2 <- read.table(paste0(results_path, "02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK.4.Q"), header = FALSE)
+
+
+#####Sorting Dataframe - Q-Files - Barplots
+q_H1_sorted <- q_H1[order(q_H1$V1, q_H1$V2, decreasing = TRUE), ]
+
+barplot_Q_H1_sorted <- barplot(t(as.matrix(q_H1_sorted)), col = rainbow(5), xlab = "plot_number", ylab = "Ancestry", 
+                        border = NA)
+
+q_H2_sorted <- q_H2[order(q_H2$V1, q_H2$V2, decreasing = TRUE), ]
+
+barplot_Q_H2_sorted <- barplot(t(as.matrix(q_H2_sorted)), col = rainbow(5), xlab = "plot_number", ylab = "Ancestry", 
+                               border = NA)
+
+#####Generating a cluster assignment table
+#H1
+fam_H1 <- read.table(paste0(results_path, "02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H1_PLINK.fam"))
+plot_number <- fam_H1$V1
+admix_H1 <- data.frame(q_H1, plot_number)
+admix_H1$plot_number <- sub('/media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H1/05_MAPPED_DATA/P', '', admix_H1$plot_number)
+admix_H1$plot_number <- sub('_uniquelyMapper_Aligned.sortedByCoord.out.bam', '', admix_H1$plot_number)
+
+write.csv(admix_H1, paste0(results_path, "02_POPULATION_STRUCTURE/admixture_cluster_assignment_H1.csv"))
+
+#H2
+fam_H2 <- read.table(paste0(results_path, "02_POPULATION_STRUCTURE/ADMIXTURE/PYT500_H2_PLINK.fam"))
+plot_number <- fam_H2$V1
+admix_H2 <- data.frame(q_H2, plot_number)
+admix_H2$plot_number <- sub('/media/stephan/YUBARTA/SINDY/HAPLOTYPE_RESOLVED/01_MAPPED_DATA/H2/05_MAPPED_DATA/P', '', admix_H2$plot_number)
+admix_H2$plot_number <- sub('_uniquelyMapper_Aligned.sortedByCoord.out.bam', '', admix_H2$plot_number)
+
+write.csv(admix_H2, paste0(results_path, "02_POPULATION_STRUCTURE/admixture_cluster_assignment_H2.csv"))
